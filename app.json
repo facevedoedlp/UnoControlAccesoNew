@@ -1,29 +1,46 @@
 {
   "expo": {
-    "name": "UnoControlAccesoNew",
-    "slug": "UnoControlAccesoNew",
-    "version": "1.0.0",
+    "name": "UNO - Control de Acceso",
+    "slug": "uno-control-acceso-new",
+    "version": "0.8.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F44336"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tuempresa.unocontrolacceso",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F44336"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.tuempresa.unocontrolacceso",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite a la aplicación acceder a la cámara para escanear códigos QR."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ae7bf090-c8a5-4331-b269-57aa0a323d71"
+      }
     }
   }
 }
