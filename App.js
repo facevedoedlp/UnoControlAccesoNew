@@ -13,6 +13,7 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,35 @@ try {
 }
 
 const { width } = Dimensions.get('window');
+
+// ==================== CONFIGURACIÓN DE PERÍMETROS ====================
+const PERIMETROS = {
+  BOSQUE: {
+    nombre: 'Bosque',
+    puertas: ['2', '3', '4', '5', '6', '7', '8', '9', '10'],
+    icono: '🌳'
+  },
+  VIP: {
+    nombre: 'VIP',
+    puertas: ['1', 'VIP'],
+    icono: '👑'
+  },
+  ZONA_ALTA: {
+    nombre: 'Zona Alta',
+    puertas: ['17', '18', '19', '20'],
+    icono: '🔢'
+  },
+  CODO: {
+    nombre: 'Codo',
+    puertas: ['CODO'],
+    icono: '🥤'
+  },
+  TODOS: {
+    nombre: 'Todos los Perímetros',
+    puertas: [],
+    icono: '🌐'
+  }
+};
 
 export default function App() {
   // ==================== ESTADOS PRINCIPALES ====================
@@ -94,36 +124,39 @@ export default function App() {
   const inputRef = useRef(null);
   const cameraRef = useRef(null);
 
-  // ==================== CONFIGURACIÓN DE PERÍMETROS ====================
-  const PERIMETROS = {
-    BOSQUE: {
-      nombre: 'Bosque',
-      puertas: ['2', '3', '4', '5', '6', '7', '8', '9', '10'],
-      icono: '🌳'
-    },
-    VIP: {
-      nombre: 'VIP',
-      puertas: ['1', 'VIP'],
-      icono: '👑'
-    },
-    ZONA_ALTA: {
-      nombre: 'Zona Alta',
-      puertas: ['17', '18', '19', '20'],
-      icono: '🔢'
-    },
-    CODO: {
-      nombre: 'Codo',
-      puertas: ['CODO'],
-      icono: '🥤'
-    },
-    TODOS: {
-      nombre: 'Todos los Perímetros',
-      puertas: [],
-      icono: '🌐'
+  // ==================== FUNCIONES DE UTILIDAD ====================
+  
+  const filtrarDNI = (barcode) => {
+    // Verificar si es JWT
+    if (/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+$/.test(barcode)) {
+      try {
+        const parts = barcode.split('.');
+        if (parts.length === 3) {
+          let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (base64.length % 4) {
+            base64 += '=';
+          }
+          const payload = JSON.parse(atob(base64));
+          return payload.dni || barcode;
+        }
+      } catch (e) {
+        console.log('Error parsing JWT:', e);
+      }
     }
-  };
 
-  // ==================== FUNCIONES DE VERSIÓN ====================
+    // Verificar formato de código de barras de DNI argentino
+    const datadni = barcode.split('@');
+    if (datadni.length === 8 || datadni.length === 9) {
+      return datadni[4].replace(/\D/g, '').replace(/^0+/, '');
+    } else if (datadni.length > 9) {
+      return datadni[1].replace(/\D/g, '').replace(/^0+/, '');
+    } else if (datadni.length === 2) {
+      return datadni[0].replace(/\D/g, '').replace(/^0+/, '');
+    }
+
+    // Fallback: extraer solo números
+    return barcode.replace(/\D/g, '').replace(/^0+/, '');
+  };
 
   const getAppVersion = () => {
     const version = Constants.expoConfig?.version || Constants.manifest?.version || '0.8.0';
@@ -139,26 +172,9 @@ export default function App() {
     };
   };
 
-  const mostrarInfoVersion = () => {
-    const versionInfo = getAppVersion();
-    const buildDate = Constants.expoConfig?.extra?.buildDate || new Date().toLocaleDateString();
-    
-    Alert.alert(
-      '📱 Información de la Aplicación',
-      `UNO - Control de Acceso\n\n` +
-      `📦 Versión: ${versionInfo.version}\n` +
-      `🔨 Build: ${versionInfo.buildNumber}\n` +
-      `📱 Plataforma: ${versionInfo.platform}\n` +
-      `📅 Fecha: ${buildDate}\n` +
-      `⚙️ Expo: ${Constants.expoVersion || 'N/A'}`,
-      [{ text: 'OK', onPress: () => focusInput() }]
-    );
-  };
-
-  // ==================== FUNCIONES DE FOCUS AUTOMÁTICO ====================
+  // ==================== FUNCIONES DE FOCUS Y NAVEGACIÓN ====================
   
   const focusInput = () => {
-    // Solo hacer focus si estamos en la pantalla principal (no en configuración)
     if (!showConfig && !showScanner && isConfigured) {
       setTimeout(() => {
         if (inputRef.current) {
@@ -173,234 +189,215 @@ export default function App() {
     focusInput();
   };
 
-  // Focus automático al tocar la pantalla (solo en pantalla principal)
   const handleScreenPress = () => {
     if (!showConfig && !showScanner && isConfigured) {
       focusInput();
     }
   };
 
-  useEffect(() => {
-    cargarConfiguracion();
-    getCameraPermissions();
-    // Focus inicial
-    focusInput();
-  }, []);
-
-  // Focus automático cuando se cierra scanner
-  useEffect(() => {
-    if (!showScanner) {
-      focusInput();
+  // ==================== FUNCIONES DE VALIDACIÓN ====================
+  
+  const validarPerimetroEntrada = (entrada) => {
+    if (perimetroSeleccionado === 'TODOS') {
+      return { valido: true, motivo: 'ACCESO_TOTAL' };
     }
-  }, [showScanner]);
 
-  // ==================== FUNCIONES DE BASE OFFLINE CORREGIDAS ====================
+    const perimetroActual = PERIMETROS[perimetroSeleccionado];
+    if (!perimetroActual) {
+      return { valido: true, motivo: 'PERIMETRO_DESCONOCIDO' };
+    }
 
-  const cargarBaseLocal = async () => {
-    try {
-      if (!eventoId) {
-        console.log('No hay eventoId configurado');
-        return;
-      }
+    let puertas_entrada = [];
+    
+    // Extraer puertas de la entrada
+    if (entrada.puerta) {
+      const puertaStr = entrada.puerta.toString().toUpperCase();
+      const numerosPuerta = puertaStr.match(/\d+/g) || [];
+      puertas_entrada = [...puertas_entrada, ...numerosPuerta];
       
-      // Primero intentar cargar desde AsyncStorage (base ya descargada)
-      const baseData = await AsyncStorage.getItem(`baseLocal_${eventoId}`);
-      if (baseData) {
-        const parsedBase = JSON.parse(baseData);
-        setBaseLocal(parsedBase.entradas || []);
-        setFechaDescarga(parsedBase.fechaDescarga || '');
-        setTotalEntradas(parsedBase.entradas ? parsedBase.entradas.length : 0);
-        console.log(`Base local cargada: ${parsedBase.entradas ? parsedBase.entradas.length : 0} entradas`);
-        return parsedBase.entradas || [];
-      } else {
-        console.log('No hay base local guardada');
-        return [];
+      if (puertaStr.includes('VIP')) puertas_entrada.push('VIP');
+      if (puertaStr.includes('CODO')) puertas_entrada.push('CODO');
+    }
+
+    if (entrada.sector_detalle) {
+      const sectorStr = entrada.sector_detalle.toString().toUpperCase();
+      const numerosSector = sectorStr.match(/\d+/g) || [];
+      puertas_entrada = [...puertas_entrada, ...numerosSector];
+      
+      if (sectorStr.includes('VIP')) puertas_entrada.push('VIP');
+      if (sectorStr.includes('CODO')) puertas_entrada.push('CODO');
+    }
+
+    // Manejar modo visitante
+    if (modoVisitante) {
+      if (puertas_entrada.includes('CODO')) {
+        puertas_entrada = ['VISITANTE'];
       }
-    } catch (error) {
-      console.error('Error cargando base local:', error);
-      return [];
-    }
-  };
-
-  // ==================== FUNCIÓN DE DESCARGA DE BASE OFFLINE ====================
-
-  const descargarBaseOffline = async () => {
-    if (!eventoId) {
-      Alert.alert('Error', 'Debe configurar el ID del evento primero');
-      return;
+      if (puertas_entrada.includes('14')) {
+        puertas_entrada = ['COMITIVA_VISITANTE'];
+      }
     }
 
-    if (!username || !password) {
-      Alert.alert('Error', 'Debe configurar usuario y contraseña');
-      return;
-    }
-
-    Alert.alert(
-      'Descargar Base Completa',
-      'Esto descargará todas las entradas del evento para uso offline. ¿Continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Descargar', 
-          onPress: async () => {
-            setIsDownloading(true);
-            setDownloadProgress(0);
-
-            try {
-              // Paso 1: Login si no estamos autenticados
-              if (!isLoggedIn) {
-                console.log('Iniciando login...');
-                const loginSuccess = await loginToAPI(username, password);
-                if (!loginSuccess) {
-                  setIsDownloading(false);
-                  return;
-                }
-              }
-
-              console.log('Iniciando descarga de base completa...');
-              setDownloadProgress(20);
-              
-              // Paso 2: Construir URL de descarga
-              const url = `${apiUrl}/getConsultaGeneralControlAccesoHabilitado?estadoingreso=2&eventoid=${eventoId}`;
-              console.log('URL de descarga:', url);
-              
-              // Paso 3: Realizar petición
-              const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Cache-Control': 'no-cache',
-                },
-                credentials: 'include'
-              });
-
-              setDownloadProgress(50);
-
-              if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
-              }
-
-              const responseText = await response.text();
-              
-              // Verificar si recibimos HTML (login page)
-              if (responseText.trim().startsWith('<!DOCTYPE html>') || responseText.includes('<form')) {
-                setIsLoggedIn(false);
-                throw new Error('Sesión expirada, necesita reautenticación');
-              }
-
-              setDownloadProgress(70);
-
-              // Paso 4: Parsear respuesta
-              let data;
-              try {
-                data = JSON.parse(responseText);
-              } catch (parseError) {
-                console.error('Error parsing JSON:', parseError);
-                throw new Error('La respuesta del servidor no es JSON válido');
-              }
-
-              console.log(`Datos recibidos: ${Array.isArray(data) ? data.length : 'No es array'}`);
-
-              if (!data || !Array.isArray(data) || data.length === 0) {
-                throw new Error('No se recibieron datos válidos del servidor');
-              }
-
-              setDownloadProgress(90);
-
-              // Paso 5: Preparar datos para guardar
-              const baseData = {
-                entradas: data,
-                fechaDescarga: new Date().toLocaleString('es-AR'),
-                eventoId: eventoId,
-                totalEntradas: data.length,
-                version: '1.0'
-              };
-
-              // Paso 6: Guardar en AsyncStorage
-              await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
-              
-              // Paso 7: Actualizar estado local
-              setBaseLocal(data);
-              setFechaDescarga(baseData.fechaDescarga);
-              setTotalEntradas(data.length);
-
-              setDownloadProgress(100);
-
-              Alert.alert(
-                'Descarga Completa', 
-                `Se descargaron ${data.length.toLocaleString()} entradas correctamente.\n\nAhora puede usar la app sin conexión.`
-              );
-
-              console.log(`Base offline guardada exitosamente: ${data.length} entradas`);
-
-            } catch (error) {
-              console.error('Error descargando base:', error);
-              Alert.alert('Error', `No se pudo descargar la base: ${error.message}`);
-            } finally {
-              setIsDownloading(false);
-              setDownloadProgress(0);
-            }
-          }
-        }
-      ]
+    const coincide = puertas_entrada.some(puerta => 
+      perimetroActual.puertas.includes(puerta)
     );
+
+    return { valido: coincide };
   };
 
-  // ==================== FUNCIÓN DE LOGIN MEJORADA ====================
+  // ==================== FUNCIONES DE RESULTADO ====================
+  
+  const mostrarResultadoUnificado = (datos) => {
+    let mensaje = '';
+    let color = '';
+    let estadoFinal = '';
+    let nombreFinal = '';
+    let sectorFinal = '';
+    let horaFinal = '';
+    let dniFinal = datos.dni || 'Sin DNI';
 
-  const loginToAPI = async (user, pass) => {
-    try {
-      console.log('Intentando login...');
-      
-      // Paso 1: Obtener página de login para extraer token
-      const loginPageResponse = await fetch('https://gestion.estudiantesdelaplata.com/Account/Login', {
-        method: 'GET',
-        credentials: 'include'
-      });
-      
-      const loginPageText = await loginPageResponse.text();
-      
-      // Paso 2: Extraer token de verificación
-      const tokenMatch = loginPageText.match(/name="__RequestVerificationToken".*?value="([^"]+)"/);
-      const verificationToken = tokenMatch ? tokenMatch[1] : '';
-      
-      if (!verificationToken) {
-        throw new Error('No se pudo obtener el token de verificación');
-      }
-      
-      // Paso 3: Preparar datos de login
-      const loginData = new FormData();
-      loginData.append('tipoDocId', 'DNI');
-      loginData.append('UserName', user);
-      loginData.append('Password', pass);
-      loginData.append('__RequestVerificationToken', verificationToken);
-      
-      // Paso 4: Enviar login
-      const loginResponse = await fetch('https://gestion.estudiantesdelaplata.com/Account/Login', {
-        method: 'POST',
-        body: loginData,
-        credentials: 'include',
-        redirect: 'manual' // Importante para manejar redirects
-      });
-      
-      console.log('Login response status:', loginResponse.status);
-      
-      if (loginResponse.status === 302 || loginResponse.status === 200) {
-        setIsLoggedIn(true);
-        console.log('Login exitoso');
-        return true;
+    if (datos.origen === 'molinetes') {
+      // Lógica para API de molinetes
+      if (datos.mensaje && datos.mensaje.toLowerCase().includes('quemado')) {
+        mensaje = '❌ ENTRADA YA UTILIZADA ❌';
+        color = '#F44336';
+        estadoFinal = 'USADA';
+      } else if (datos.mensaje && datos.mensaje.toLowerCase().includes('puerta incorrecta')) {
+        mensaje = '⚠️ PERÍMETRO INCORRECTO ⚠️';
+        color = '#FF9800';
+        estadoFinal = 'PERÍMETRO INCORRECTO';
+      } else if (datos.pasa) {
+        mensaje = isPerimetro ? '✅ ACCESO AUTORIZADO ✅' : '✅ ENTRADA VÁLIDA ✅';
+        color = '#4CAF50';
+        estadoFinal = 'VÁLIDA';
       } else {
-        throw new Error('Credenciales incorrectas');
+        mensaje = '❌ ACCESO DENEGADO ❌';
+        color = '#F44336';
+        estadoFinal = 'NO VÁLIDA';
       }
+
+      nombreFinal = 'Sin datos de nombre';
+      sectorFinal = `Puerta: ${datos.puerta}`;
+      horaFinal = new Date().toLocaleTimeString();
       
+    } else {
+      // Lógica para API de eventos
+      const yaIngreso = datos.ingreso_evento === true || datos.ingreso_evento_hora;
+      
+      if (yaIngreso) {
+        mensaje = '❌ ENTRADA YA UTILIZADA ❌';
+        color = '#F44336';
+        estadoFinal = 'USADA';
+      } else if (datos.estadoingreso === 2 || datos.ingresohabilitado === 'CONFIRMADO') {
+        const validacionPerimetro = validarPerimetroEntrada(datos);
+        
+        if (validacionPerimetro.valido) {
+          mensaje = isPerimetro ? '✅ ACCESO AUTORIZADO ✅' : '✅ ENTRADA VÁLIDA ✅';
+          color = '#4CAF50';
+          estadoFinal = 'VÁLIDA';
+          
+          if (!isPerimetro) {
+            marcarEntradaComoUsada(datos.dni);
+          }
+        } else {
+          mensaje = '⚠️ PERÍMETRO INCORRECTO ⚠️';
+          color = '#FF9800';
+          estadoFinal = 'PERÍMETRO INCORRECTO';
+        }
+      } else {
+        mensaje = '❌ ENTRADA NO VÁLIDA ❌';
+        color = '#F44336';
+        estadoFinal = 'NO VÁLIDA';
+      }
+
+      nombreFinal = datos.beneficiario_denominacion || datos.titular_denominacion || 'Sin nombre';
+      sectorFinal = datos.sector_detalle || datos.sector_nombre || datos.sector || 'Sin sector';
+      horaFinal = datos.ingreso_evento_hora ? 
+        new Date(datos.ingreso_evento_hora).toLocaleString() : 
+        new Date().toLocaleTimeString();
+    }
+
+    setResultado({
+      mensaje: mensaje,
+      color: color,
+      detalles: {
+        dni: dniFinal,
+        nombre: nombreFinal,
+        estado: estadoFinal,
+        sector: sectorFinal,
+        hora: horaFinal,
+        perimetroActual: perimetroSeleccionado !== 'TODOS' ? PERIMETROS[perimetroSeleccionado]?.nombre : 'Todos',
+        raw: datos
+      }
+    });
+
+    resetearPantalla();
+  };
+
+  // ==================== FUNCIONES DE CONSULTA ====================
+  
+  const procesarCodigo = (codigo) => {
+    if (codigo.length < 3) {
+      Alert.alert('Error', 'Ingrese un código válido', [
+        { text: 'OK', onPress: () => resetearPantalla() }
+      ]);
+      return;
+    }
+    
+    const dni = filtrarDNI(codigo);
+    consultarAPI(dni);
+  };
+
+  const consultarApiMolinetes = async (codigo) => {
+    setIsLoading(true);
+    setResultado({
+      mensaje: 'Consultando...',
+      color: '#FFA500',
+      detalles: null
+    });
+
+    try {
+      const resultado = await consultarCodigoMolinetes(
+        codigo,
+        puerta,
+        molinete,
+        isPerimetro ? "0" : "1"
+      );
+
+      if (resultado.success) {
+        mostrarResultadoUnificado({
+          dni: codigo,
+          origen: 'molinetes',
+          pasa: resultado.pasa,
+          estado: resultado.mensaje,
+          color: resultado.color,
+          puerta: puerta,
+          mensaje: resultado.mensaje
+        });
+      } else {
+        mostrarResultadoUnificado({
+          dni: codigo,
+          origen: 'molinetes',
+          pasa: false,
+          estado: 'ERROR DE CONEXIÓN',
+          color: '#F44336',
+          mensaje: 'Error de conexión'
+        });
+      }
     } catch (error) {
-      console.error('Error en login:', error);
-      Alert.alert('Error de Login', error.message);
-      return false;
+      console.error('Error consultando molinetes:', error);
+      mostrarResultadoUnificado({
+        dni: codigo,
+        origen: 'molinetes',
+        pasa: false,
+        estado: 'ERROR DE MOLINETES',
+        color: '#F44336',
+        mensaje: error.message
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  // ==================== FUNCIÓN PARA CONSULTAR BASE LOCAL ====================
 
   const consultarLocal = (dni) => {
     console.log(`Consultando DNI ${dni} en base local de ${baseLocal.length} entradas`);
@@ -433,40 +430,6 @@ export default function App() {
     }
   };
 
-  // ==================== FUNCIÓN MARCAR ENTRADA COMO USADA ====================
-  const marcarEntradaComoUsada = async (dni) => {
-    try {
-      const updatedBase = baseLocal.map(ticket => {
-        if (ticket.beneficiario_identificador === dni) {
-          return {
-            ...ticket,
-            ingreso_evento: true,
-            ingreso_evento_hora: new Date().toISOString()
-          };
-        }
-        return ticket;
-      });
-
-      setBaseLocal(updatedBase);
-
-      // Guardar en AsyncStorage
-      const baseData = {
-        entradas: updatedBase,
-        fechaDescarga: fechaDescarga,
-        eventoId: eventoId,
-        totalEntradas: updatedBase.length,
-        version: '1.0'
-      };
-
-      await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
-      console.log(`Entrada marcada como usada para DNI: ${dni}`);
-    } catch (error) {
-      console.error('Error marcando entrada como usada:', error);
-    }
-  };
-
-  // ==================== FUNCIÓN CONSULTARAPI MEJORADA ====================
-
   const consultarAPI = async (dni) => {
     if (!eventoId) {
       Alert.alert('Error', 'Debe configurar el ID del evento primero');
@@ -478,20 +441,17 @@ export default function App() {
       return;
     }
 
-    // Si usamos API de molinetes, usar esa función
     if (usarApiMolinetes) {
       consultarApiMolinetes(dni);
       return;
     }
 
-    // Si tenemos base local, usar esa primero
     if (baseLocal.length > 0) {
       console.log('Usando base local para consultar');
       consultarLocal(dni);
       return;
     }
 
-    // Si no hay base local, consultar API online
     console.log('Consultando API online...');
     
     if (!isLoggedIn && (username && password)) {
@@ -582,7 +542,6 @@ export default function App() {
     } finally {
       setIsLoading(false);
       
-      // Auto-reset después de 5 segundos
       setTimeout(() => {
         setResultado({
           mensaje: 'INGRESE CÓDIGO O DNI',
@@ -593,8 +552,229 @@ export default function App() {
     }
   };
 
-  // ==================== FUNCIONES AUXILIARES PARA ESTADÍSTICAS ====================
+  // ==================== FUNCIONES DE AUTENTICACIÓN ====================
+  
+  const loginToAPI = async (user, pass) => {
+    try {
+      console.log('Intentando login...');
+      
+      const loginPageResponse = await fetch('https://gestion.estudiantesdelaplata.com/Account/Login', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      const loginPageText = await loginPageResponse.text();
+      
+      const tokenMatch = loginPageText.match(/name="__RequestVerificationToken".*?value="([^"]+)"/);
+      const verificationToken = tokenMatch ? tokenMatch[1] : '';
+      
+      if (!verificationToken) {
+        throw new Error('No se pudo obtener el token de verificación');
+      }
+      
+      const loginData = new FormData();
+      loginData.append('tipoDocId', 'DNI');
+      loginData.append('UserName', user);
+      loginData.append('Password', pass);
+      loginData.append('__RequestVerificationToken', verificationToken);
+      
+      const loginResponse = await fetch('https://gestion.estudiantesdelaplata.com/Account/Login', {
+        method: 'POST',
+        body: loginData,
+        credentials: 'include',
+        redirect: 'manual'
+      });
+      
+      console.log('Login response status:', loginResponse.status);
+      
+      if (loginResponse.status === 302 || loginResponse.status === 200) {
+        setIsLoggedIn(true);
+        console.log('Login exitoso');
+        return true;
+      } else {
+        throw new Error('Credenciales incorrectas');
+      }
+      
+    } catch (error) {
+      console.error('Error en login:', error);
+      Alert.alert('Error de Login', error.message);
+      return false;
+    }
+  };
 
+  // ==================== FUNCIONES DE BASE LOCAL ====================
+  
+  const cargarBaseLocal = async () => {
+    try {
+      if (!eventoId) {
+        console.log('No hay eventoId configurado');
+        return;
+      }
+      
+      const baseData = await AsyncStorage.getItem(`baseLocal_${eventoId}`);
+      if (baseData) {
+        const parsedBase = JSON.parse(baseData);
+        setBaseLocal(parsedBase.entradas || []);
+        setFechaDescarga(parsedBase.fechaDescarga || '');
+        setTotalEntradas(parsedBase.entradas ? parsedBase.entradas.length : 0);
+        console.log(`Base local cargada: ${parsedBase.entradas ? parsedBase.entradas.length : 0} entradas`);
+        return parsedBase.entradas || [];
+      } else {
+        console.log('No hay base local guardada');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error cargando base local:', error);
+      return [];
+    }
+  };
+
+  const marcarEntradaComoUsada = async (dni) => {
+    try {
+      const updatedBase = baseLocal.map(ticket => {
+        if (ticket.beneficiario_identificador === dni) {
+          return {
+            ...ticket,
+            ingreso_evento: true,
+            ingreso_evento_hora: new Date().toISOString()
+          };
+        }
+        return ticket;
+      });
+
+      setBaseLocal(updatedBase);
+
+      const baseData = {
+        entradas: updatedBase,
+        fechaDescarga: fechaDescarga,
+        eventoId: eventoId,
+        totalEntradas: updatedBase.length,
+        version: '1.0'
+      };
+
+      await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
+      console.log(`Entrada marcada como usada para DNI: ${dni}`);
+    } catch (error) {
+      console.error('Error marcando entrada como usada:', error);
+    }
+  };
+
+  const descargarBaseOffline = async () => {
+    if (!eventoId) {
+      Alert.alert('Error', 'Debe configurar el ID del evento primero');
+      return;
+    }
+
+    if (!username || !password) {
+      Alert.alert('Error', 'Debe configurar usuario y contraseña');
+      return;
+    }
+
+    Alert.alert(
+      'Descargar Base Completa',
+      'Esto descargará todas las entradas del evento para uso offline. ¿Continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Descargar', 
+          onPress: async () => {
+            setIsDownloading(true);
+            setDownloadProgress(0);
+
+            try {
+              if (!isLoggedIn) {
+                console.log('Iniciando login...');
+                const loginSuccess = await loginToAPI(username, password);
+                if (!loginSuccess) {
+                  setIsDownloading(false);
+                  return;
+                }
+              }
+
+              console.log('Iniciando descarga de base completa...');
+              setDownloadProgress(20);
+              
+              const url = `${apiUrl}/getConsultaGeneralControlAccesoHabilitado?estadoingreso=2&eventoid=${eventoId}`;
+              console.log('URL de descarga:', url);
+              
+              const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Cache-Control': 'no-cache',
+                },
+                credentials: 'include'
+              });
+
+              setDownloadProgress(50);
+
+              if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+              }
+
+              const responseText = await response.text();
+              
+              if (responseText.trim().startsWith('<!DOCTYPE html>') || responseText.includes('<form')) {
+                setIsLoggedIn(false);
+                throw new Error('Sesión expirada, necesita reautenticación');
+              }
+
+              setDownloadProgress(70);
+
+              let data;
+              try {
+                data = JSON.parse(responseText);
+              } catch (parseError) {
+                console.error('Error parsing JSON:', parseError);
+                throw new Error('La respuesta del servidor no es JSON válido');
+              }
+
+              console.log(`Datos recibidos: ${Array.isArray(data) ? data.length : 'No es array'}`);
+
+              if (!data || !Array.isArray(data) || data.length === 0) {
+                throw new Error('No se recibieron datos válidos del servidor');
+              }
+
+              setDownloadProgress(90);
+
+              const baseData = {
+                entradas: data,
+                fechaDescarga: new Date().toLocaleString('es-AR'),
+                eventoId: eventoId,
+                totalEntradas: data.length,
+                version: '1.0'
+              };
+
+              await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
+              
+              setBaseLocal(data);
+              setFechaDescarga(baseData.fechaDescarga);
+              setTotalEntradas(data.length);
+
+              setDownloadProgress(100);
+
+              Alert.alert(
+                'Descarga Completa', 
+                `Se descargaron ${data.length.toLocaleString()} entradas correctamente.\n\nAhora puede usar la app sin conexión.`
+              );
+
+              console.log(`Base offline guardada exitosamente: ${data.length} entradas`);
+
+            } catch (error) {
+              console.error('Error descargando base:', error);
+              Alert.alert('Error', `No se pudo descargar la base: ${error.message}`);
+            } finally {
+              setIsDownloading(false);
+              setDownloadProgress(0);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // ==================== FUNCIONES DE ADMINISTRACIÓN ====================
+  
   const mostrarEstadisticasOffline = () => {
     if (baseLocal.length === 0) {
       Alert.alert(
@@ -608,7 +788,6 @@ export default function App() {
       return;
     }
 
-    // Calcular estadísticas
     const entradasValidadas = baseLocal.filter(entrada => 
       entrada.estadoingreso === 2 || entrada.ingresohabilitado === 'CONFIRMADO'
     ).length;
@@ -695,404 +874,32 @@ export default function App() {
     );
   };
 
-  // ==================== FUNCIONES DE CONFIGURACIÓN ====================
-  const cargarConfiguracion = async () => {
-    try {
-      const config = await AsyncStorage.getItem('appConfig');
-      if (config) {
-        const parsedConfig = JSON.parse(config);
-        setIsPerimetro(parsedConfig.isPerimetro ?? true);
-        setEventoId(parsedConfig.eventoId ?? '');
-        setApiUrl(parsedConfig.apiUrl ?? 'https://gestion.estudiantesdelaplata.com/api/EventosGestionv2');
-        setPuerta(parsedConfig.puerta ?? '1');
-        setMolinete(parsedConfig.molinete ?? '1');
-        setIsConfigured(parsedConfig.isConfigured ?? false);
-        setUsername(parsedConfig.username ?? '');
-        setPassword(parsedConfig.password ?? '');
-        
-        // Configuración API molinetes
-        setUsarApiMolinetes(parsedConfig.usarApiMolinetes ?? false);
-        setMolinetesApiUrl(parsedConfig.molinetesApiUrl ?? 'http://10.0.10.30:8000');
-        setMolinetesToken(parsedConfig.molinetesToken ?? '');
-        
-        // Configuración de perímetros
-        setPerimetroSeleccionado(parsedConfig.perimetroSeleccionado ?? 'TODOS');
-        setModoVisitante(parsedConfig.modoVisitante ?? false);
-      }
-      
-      await cargarBaseLocal();
-    } catch (error) {
-      console.error('Error cargando configuración:', error);
-    }
-  };
-
-  const guardarConfiguracion = async () => {
-    try {
-      const config = {
-        isPerimetro,
-        eventoId,
-        apiUrl,
-        puerta,
-        molinete,
-        isConfigured: true,
-        username,
-        password,
-        usarApiMolinetes,
-        molinetesApiUrl,
-        molinetesToken,
-        perimetroSeleccionado,
-        modoVisitante
-      };
-      await AsyncStorage.setItem('appConfig', JSON.stringify(config));
-      setIsConfigured(true);
-      setShowConfig(false);
-      
-      await cargarBaseLocal();
-      
-      // Focus después de cerrar configuración
-      setTimeout(() => focusInput(), 300);
-      
-      Alert.alert('Éxito', 'Configuración guardada correctamente');
-    } catch (error) {
-      console.error('Error guardando configuración:', error);
-      Alert.alert('Error', 'No se pudo guardar la configuración');
-    }
-  };
-
-  const mostrarConfiguracion = () => {
-    if (!isConfigured) {
-      setShowConfig(true);
-      return;
-    }
-
-    Alert.prompt(
-      'Contraseña requerida',
-      'Ingrese la contraseña para acceder a la configuración:',
-      [
-        { text: 'Cancelar', style: 'cancel', onPress: () => setTimeout(() => focusInput(), 100) },
-        {
-          text: 'Aceptar',
-          onPress: (password) => {
-            if (password === 'root') {
-              setShowConfig(true);
-            } else {
-              Alert.alert('Error', 'Contraseña incorrecta', [
-                { text: 'OK', onPress: () => setTimeout(() => focusInput(), 100) }
-              ]);
-            }
-          }
-        }
-      ],
-      'secure-text'
-    );
-  };
-
-  // ==================== FUNCIONES DE CÁMARA ====================
-  const getCameraPermissions = async () => {
-    try {
-      if (!isCameraAvailable || !Camera) {
-        console.log('expo-camera no disponible en esta plataforma');
-        setHasPermission(false);
-        return;
-      }
-      
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-      console.log('Camera permission status:', status);
-    } catch (error) {
-      console.log('Error requesting camera permissions:', error);
-      setHasPermission(false);
-    }
-  };
-
-  const handleBarcodeScanned = (scanningResult) => {
-    if (scanningResult.data) {
-      console.log('Código escaneado:', scanningResult.data);
-      setShowScanner(false);
-      procesarCodigo(scanningResult.data);
-    }
-  };
-
-  // ==================== FUNCIONES DE PROCESAMIENTO ====================
-  const filtrarDNI = (barcode) => {
-    // Detectar JWT (DNI nuevo)
-    if (/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+$/.test(barcode)) {
-      try {
-        const parts = barcode.split('.');
-        if (parts.length === 3) {
-          let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          while (base64.length % 4) {
-            base64 += '=';
-          }
-          const payload = JSON.parse(atob(base64));
-          return payload.dni || barcode;
-        }
-      } catch (e) {
-        console.log('Error parsing JWT:', e);
-      }
-    }
-
-    // Detectar formato de DNI con @
-    const datadni = barcode.split('@');
-    if (datadni.length === 8 || datadni.length === 9) {
-      return datadni[4].replace(/\D/g, '').replace(/^0+/, '');
-    } else if (datadni.length > 9) {
-      return datadni[1].replace(/\D/g, '').replace(/^0+/, '');
-    } else if (datadni.length === 2) {
-      return datadni[0].replace(/\D/g, '').replace(/^0+/, '');
-    }
-
-    return barcode.replace(/\D/g, '').replace(/^0+/, '');
-  };
-
-  const procesarCodigo = (codigo) => {
-    if (codigo.length < 3) {
-      Alert.alert('Error', 'Ingrese un código válido', [
-        { text: 'OK', onPress: () => resetearPantalla() }
-      ]);
-      return;
-    }
+  const mostrarInfoVersion = () => {
+    const versionInfo = getAppVersion();
+    const buildDate = Constants.expoConfig?.extra?.buildDate || new Date().toLocaleDateString();
     
-    const dni = filtrarDNI(codigo);
-    consultarAPI(dni);
-  };
-
-  // ==================== FUNCIÓN DE RESULTADO UNIFICADO ====================
-  
-  const mostrarResultadoUnificado = (datos) => {
-    let mensaje = '';
-    let color = '';
-    let estadoFinal = '';
-    let nombreFinal = '';
-    let sectorFinal = '';
-    let horaFinal = '';
-    let dniFinal = datos.dni || 'Sin DNI';
-
-    // LÓGICA UNIFICADA - Misma validación para ambos modos
-    if (datos.origen === 'molinetes') {
-      // Para API molinetes, determinar estado basado en respuesta
-      if (datos.mensaje && datos.mensaje.toLowerCase().includes('quemado')) {
-        // Entrada ya utilizada
-        mensaje = '❌ ENTRADA YA UTILIZADA ❌';
-        color = '#F44336';
-        estadoFinal = 'USADA';
-      } else if (datos.mensaje && datos.mensaje.toLowerCase().includes('puerta incorrecta')) {
-        // Perímetro incorrecto
-        mensaje = '⚠️ PERÍMETRO INCORRECTO ⚠️';
-        color = '#FF9800';
-        estadoFinal = 'PERÍMETRO INCORRECTO';
-      } else if (datos.pasa) {
-        // Acceso autorizado
-        mensaje = isPerimetro ? '✅ ACCESO AUTORIZADO ✅' : '✅ ENTRADA VÁLIDA ✅';
-        color = '#4CAF50';
-        estadoFinal = 'VÁLIDA';
-      } else {
-        // Acceso denegado genérico
-        mensaje = '❌ ACCESO DENEGADO ❌';
-        color = '#F44336';
-        estadoFinal = 'NO VÁLIDA';
-      }
-
-      // Datos específicos de molinetes
-      nombreFinal = 'Sin datos de nombre'; // API molinetes no devuelve nombre
-      sectorFinal = `Puerta: ${datos.puerta}`;
-      horaFinal = new Date().toLocaleTimeString();
-      
-    } else {
-      // LÓGICA para base local/offline
-      const yaIngreso = datos.ingreso_evento === true || datos.ingreso_evento_hora;
-      
-      if (yaIngreso) {
-        mensaje = '❌ ENTRADA YA UTILIZADA ❌';
-        color = '#F44336';
-        estadoFinal = 'USADA';
-      } else if (datos.estadoingreso === 2 || datos.ingresohabilitado === 'CONFIRMADO') {
-        // Verificar perímetro usando la misma lógica
-        const validacionPerimetro = validarPerimetroEntrada(datos);
-        
-        if (validacionPerimetro.valido) {
-          mensaje = isPerimetro ? '✅ ACCESO AUTORIZADO ✅' : '✅ ENTRADA VÁLIDA ✅';
-          color = '#4CAF50';
-          estadoFinal = 'VÁLIDA';
-          
-          // En modo molinete, marcar como usada si es válida
-          if (!isPerimetro) {
-            marcarEntradaComoUsada(datos.dni);
-          }
-        } else {
-          mensaje = '⚠️ PERÍMETRO INCORRECTO ⚠️';
-          color = '#FF9800';
-          estadoFinal = 'PERÍMETRO INCORRECTO';
-        }
-      } else {
-        mensaje = '❌ ENTRADA NO VÁLIDA ❌';
-        color = '#F44336';
-        estadoFinal = 'NO VÁLIDA';
-      }
-
-      nombreFinal = datos.beneficiario_denominacion || datos.titular_denominacion || 'Sin nombre';
-      sectorFinal = datos.sector_detalle || datos.sector_nombre || datos.sector || 'Sin sector';
-      horaFinal = datos.ingreso_evento_hora ? 
-        new Date(datos.ingreso_evento_hora).toLocaleString() : 
-        new Date().toLocaleTimeString();
-    }
-
-    // Configurar resultado unificado
-    setResultado({
-      mensaje: mensaje,
-      color: color,
-      detalles: {
-        dni: dniFinal,
-        nombre: nombreFinal,
-        estado: estadoFinal,
-        sector: sectorFinal,
-        hora: horaFinal,
-        // Información adicional de perímetro si es incorrecto
-        perimetroActual: perimetroSeleccionado !== 'TODOS' ? PERIMETROS[perimetroSeleccionado]?.nombre : 'Todos',
-        // Datos adicionales para debugging
-        raw: datos
-      }
-    });
-
-    // Limpiar input y preparar para siguiente escaneo
-    resetearPantalla();
-  };
-
-  // ==================== VALIDACIÓN DE PERÍMETRO ====================
-  const validarPerimetroEntrada = (entrada) => {
-    if (perimetroSeleccionado === 'TODOS') {
-      return { valido: true, motivo: 'ACCESO_TOTAL' };
-    }
-
-    const perimetroActual = PERIMETROS[perimetroSeleccionado];
-    if (!perimetroActual) {
-      return { valido: true, motivo: 'PERIMETRO_DESCONOCIDO' };
-    }
-
-    let puertas_entrada = [];
-    
-    if (entrada.puerta) {
-      const puertaStr = entrada.puerta.toString().toUpperCase();
-      const numerosPuerta = puertaStr.match(/\d+/g) || [];
-      puertas_entrada = [...puertas_entrada, ...numerosPuerta];
-      
-      if (puertaStr.includes('VIP')) puertas_entrada.push('VIP');
-      if (puertaStr.includes('CODO')) puertas_entrada.push('CODO');
-    }
-
-    if (entrada.sector_detalle) {
-      const sectorStr = entrada.sector_detalle.toString().toUpperCase();
-      const numerosSector = sectorStr.match(/\d+/g) || [];
-      puertas_entrada = [...puertas_entrada, ...numerosSector];
-      
-      if (sectorStr.includes('VIP')) puertas_entrada.push('VIP');
-      if (sectorStr.includes('CODO')) puertas_entrada.push('CODO');
-    }
-
-    if (modoVisitante) {
-      if (puertas_entrada.includes('CODO')) {
-        puertas_entrada = ['VISITANTE'];
-      }
-      if (puertas_entrada.includes('14')) {
-        puertas_entrada = ['COMITIVA_VISITANTE'];
-      }
-    }
-
-    const coincide = puertas_entrada.some(puerta => 
-      perimetroActual.puertas.includes(puerta)
-    );
-
-    return { valido: coincide };
-  };
-
-  const consultarApiMolinetes = async (codigo) => {
-    setIsLoading(true);
-    setResultado({
-      mensaje: 'Consultando...',
-      color: '#FFA500',
-      detalles: null
-    });
-
-    try {
-      const resultado = await consultarCodigoMolinetes(
-        codigo,
-        puerta,
-        molinete,
-        isPerimetro ? "0" : "1"
-      );
-
-      if (resultado.success) {
-        mostrarResultadoUnificado({
-          dni: codigo,
-          origen: 'molinetes',
-          pasa: resultado.pasa,
-          estado: resultado.mensaje,
-          color: resultado.color,
-          puerta: puerta,
-          mensaje: resultado.mensaje
-        });
-      } else {
-        mostrarResultadoUnificado({
-          dni: codigo,
-          origen: 'molinetes',
-          pasa: false,
-          estado: 'ERROR DE CONEXIÓN',
-          color: '#F44336',
-          mensaje: 'Error de conexión'
-        });
-      }
-    } catch (error) {
-      console.error('Error consultando molinetes:', error);
-      mostrarResultadoUnificado({
-        dni: codigo,
-        origen: 'molinetes',
-        pasa: false,
-        estado: 'ERROR DE MOLINETES',
-        color: '#F44336',
-        mensaje: error.message
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // ==================== FUNCIONES DE ADMINISTRACIÓN ====================
-  const mostrarPanelAdmin = () => {
-    Alert.prompt(
-      'Panel de Administración',
-      'Ingrese la contraseña de administrador:',
-      [
-        { text: 'Cancelar', style: 'cancel', onPress: () => focusInput() },
-        {
-          text: 'Aceptar',
-          onPress: (password) => {
-            if (password === 'root') {
-              mostrarMenuAdminCompleto();
-            } else {
-              Alert.alert('Error', 'Contraseña incorrecta', [
-                { text: 'OK', onPress: () => focusInput() }
-              ]);
-            }
-          }
-        }
-      ],
-      'secure-text'
+    Alert.alert(
+      '📱 Información de la Aplicación',
+      `UNO - Control de Acceso\n\n` +
+      `📦 Versión: ${versionInfo.version}\n` +
+      `🔨 Build: ${versionInfo.buildNumber}\n` +
+      `📱 Plataforma: ${versionInfo.platform}\n` +
+      `📅 Fecha: ${buildDate}\n` +
+      `⚙️ Expo: ${Constants.expoVersion || 'N/A'}`,
+      [{ text: 'OK', onPress: () => focusInput() }]
     );
   };
 
-  // Función mejorada para el menú de administración
   const mostrarMenuAdminCompleto = () => {
     const opciones = [
       { text: 'Cancelar', style: 'cancel', onPress: () => focusInput() }
     ];
 
-    // Versión (siempre disponible)
     opciones.unshift(
       { text: '📱 Ver Versión', onPress: mostrarInfoVersion }
     );
 
     if (usarApiMolinetes) {
-      // Opciones para API Molinetes
       opciones.unshift(
         { text: '🔌 Probar Conexión Molinetes', onPress: async () => {
           try {
@@ -1133,7 +940,6 @@ export default function App() {
         }}
       );
     } else {
-      // Opciones para base offline
       if (baseLocal.length > 0) {
         opciones.unshift(
           { text: '🗑️ Limpiar Base Offline', onPress: limpiarBaseOffline },
@@ -1154,7 +960,199 @@ export default function App() {
     );
   };
 
-  // ==================== FUNCIÓN PARA RENDERIZAR BARRA DE PROGRESO ====================
+  // ==================== FUNCIONES DE CONFIGURACIÓN ====================
+  
+  const cargarConfiguracion = async () => {
+    try {
+      const config = await AsyncStorage.getItem('appConfig');
+      if (config) {
+        const parsedConfig = JSON.parse(config);
+        setIsPerimetro(parsedConfig.isPerimetro ?? true);
+        setEventoId(parsedConfig.eventoId ?? '');
+        setApiUrl(parsedConfig.apiUrl ?? 'https://gestion.estudiantesdelaplata.com/api/EventosGestionv2');
+        setPuerta(parsedConfig.puerta ?? '1');
+        setMolinete(parsedConfig.molinete ?? '1');
+        setIsConfigured(parsedConfig.isConfigured ?? false);
+        setUsername(parsedConfig.username ?? '');
+        setPassword(parsedConfig.password ?? '');
+        
+        setUsarApiMolinetes(parsedConfig.usarApiMolinetes ?? false);
+        setMolinetesApiUrl(parsedConfig.molinetesApiUrl ?? 'http://10.0.10.30:8000');
+        setMolinetesToken(parsedConfig.molinetesToken ?? '');
+        
+        setPerimetroSeleccionado(parsedConfig.perimetroSeleccionado ?? 'TODOS');
+        setModoVisitante(parsedConfig.modoVisitante ?? false);
+      }
+      
+      await cargarBaseLocal();
+    } catch (error) {
+      console.error('Error cargando configuración:', error);
+    }
+  };
+
+  const guardarConfiguracion = async () => {
+    try {
+      const config = {
+        isPerimetro,
+        eventoId,
+        apiUrl,
+        puerta,
+        molinete,
+        isConfigured: true,
+        username,
+        password,
+        usarApiMolinetes,
+        molinetesApiUrl,
+        molinetesToken,
+        perimetroSeleccionado,
+        modoVisitante
+      };
+      await AsyncStorage.setItem('appConfig', JSON.stringify(config));
+      setIsConfigured(true);
+      setShowConfig(false);
+      
+      await cargarBaseLocal();
+      
+      setTimeout(() => focusInput(), 300);
+      
+      Alert.alert('Éxito', 'Configuración guardada correctamente');
+    } catch (error) {
+      console.error('Error guardando configuración:', error);
+      Alert.alert('Error', 'No se pudo guardar la configuración');
+    }
+  };
+
+  // ==================== FUNCIONES DE CÁMARA ====================
+  
+  const getCameraPermissions = async () => {
+    try {
+      if (!isCameraAvailable || !Camera) {
+        console.log('expo-camera no disponible en esta plataforma');
+        setHasPermission(false);
+        return;
+      }
+      
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === 'granted');
+      console.log('Camera permission status:', status);
+    } catch (error) {
+      console.log('Error requesting camera permissions:', error);
+      setHasPermission(false);
+    }
+  };
+
+  const handleBarcodeScanned = (scanningResult) => {
+    if (scanningResult.data) {
+      console.log('Código escaneado:', scanningResult.data);
+      setShowScanner(false);
+      procesarCodigo(scanningResult.data);
+    }
+  };
+
+  // ==================== FUNCIONES DE BOTONES (VERSIÓN SEGURA) ====================
+  
+  const handleAdminPress = () => {
+    console.log('🔧 Admin button pressed');
+    
+    Alert.alert(
+      '🔧 Panel de Administración',
+      'Acceso directo para testing',
+      [
+        { text: 'Cancelar', style: 'cancel', onPress: () => focusInput() },
+        { 
+          text: 'Abrir Admin', 
+          onPress: () => {
+            try {
+              mostrarMenuAdminCompleto();
+            } catch (error) {
+              console.error('Error abriendo admin:', error);
+              Alert.alert('Error', 'No se pudo abrir el panel de administración');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleConfigPress = () => {
+    console.log('⚙️ Config button pressed');
+    
+    if (!isConfigured) {
+      setShowConfig(true);
+      return;
+    }
+    
+    Alert.alert(
+      '⚙️ Configuración',
+      'Acceso directo para testing',
+      [
+        { text: 'Cancelar', style: 'cancel', onPress: () => focusInput() },
+        { 
+          text: 'Abrir Config', 
+          onPress: () => {
+            try {
+              setShowConfig(true);
+            } catch (error) {
+              console.error('Error abriendo config:', error);
+              Alert.alert('Error', 'No se pudo abrir la configuración');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // ==================== COMPONENTES DE RENDERIZADO ====================
+  
+  const HeaderButton = ({ onPress, iconName, label }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 30,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+        margin: 10,
+      }}
+      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+    >
+      <Ionicons name={iconName} size={24} color="white" />
+    </TouchableOpacity>
+  );
+
+  const renderHeader = () => (
+    <View style={{
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      backgroundColor: '#F44336',
+      elevation: 4,
+    }}>
+      
+      <HeaderButton
+        onPress={handleAdminPress}
+        iconName="shield-checkmark"
+        label="Admin"
+      />
+
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
+          UNO - Control de Acceso
+        </Text>
+      </View>
+
+      <HeaderButton
+        onPress={handleConfigPress}
+        iconName="settings"
+        label="Config"
+      />
+    </View>
+  );
+
   const renderProgressBar = () => {
     if (!isDownloading) return null;
 
@@ -1170,48 +1168,36 @@ export default function App() {
     );
   };
 
-  // ==================== COMPONENTES DE RENDERIZADO ====================
-  
   const renderResultadoPrincipal = () => (
     <View style={[styles.resultCard, { backgroundColor: resultado.color }]}>
       <Text style={styles.resultText}>{resultado.mensaje}</Text>
 
       {resultado.detalles && (
         <View style={styles.detallesContainer}>
-          {/* DNI */}
           <Text style={styles.detalleText}>🆔 DNI: {resultado.detalles.dni}</Text>
-          
-          {/* Nombre */}
           <Text style={styles.detalleText}>👤 {resultado.detalles.nombre}</Text>
-          
-          {/* Estado */}
           <Text style={styles.detalleText}>
             🎫 Estado: {resultado.detalles.estado.toUpperCase()}
           </Text>
-          
-          {/* Sector */}
           <Text style={styles.detalleText}>🏟️ {resultado.detalles.sector}</Text>
           
-          {/* Información de perímetro si está seleccionado */}
           {resultado.detalles.perimetroActual && perimetroSeleccionado !== 'TODOS' && (
             <Text style={styles.detalleText}>📍 Perímetro: {resultado.detalles.perimetroActual}</Text>
           )}
 
-          {/* Mensaje de perímetro incorrecto */}
           {resultado.detalles.estado === 'PERÍMETRO INCORRECTO' && (
             <Text style={[styles.detalleText, {color: '#FF5722', fontWeight: 'bold'}]}>
               ⚠️ Debe ir a otro perímetro
             </Text>
           )}
           
-          {/* Hora */}
           <Text style={styles.detalleText}>⏰ {resultado.detalles.hora}</Text>
         </View>
       )}
     </View>
   );
 
-  const renderBaseLocalInfoCompleta = () => {
+  const renderBaseLocalInfo = () => {
     return (
       <View style={styles.baseLocalContainerCompact}>
         <View style={styles.baseLocalHeaderCompact}>
@@ -1228,13 +1214,11 @@ export default function App() {
               '⚠️ Sin base offline - Toque Admin > Actualizar Base'
           }
         </Text>
-        {/* Mostrar barra de progreso durante descarga */}
         {renderProgressBar()}
       </View>
     );
   };
 
-  // ==================== CONFIGURACIÓN INICIAL ====================
   const renderConfiguracionInicial = () => (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#F44336" />
@@ -1410,7 +1394,6 @@ export default function App() {
     </SafeAreaView>
   );
 
-  // ==================== SCANNER MODAL ====================
   const renderModalScanner = () => (
     <Modal visible={showScanner} animationType="slide">
       <View style={styles.scannerContainer}>
@@ -1501,7 +1484,6 @@ export default function App() {
     </Modal>
   );
 
-  // ==================== MODAL CONFIGURACIÓN ====================
   const renderModalConfiguracion = () => (
     <Modal visible={showConfig} animationType="slide" transparent={true}>
       <View style={styles.modalOverlay}>
@@ -1652,7 +1634,6 @@ export default function App() {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
                   setShowConfig(false);
-                  // Focus después de cerrar modal
                   setTimeout(() => focusInput(), 300);
                 }}
               >
@@ -1665,38 +1646,40 @@ export default function App() {
                 <Text style={styles.saveButtonText}>Guardar</Text>
               </TouchableOpacity>
             </View>
+
           </ScrollView>
         </View>
       </View>
     </Modal>
   );
 
+  // ==================== EFFECTS ====================
+  
+  useEffect(() => {
+    cargarConfiguracion();
+    getCameraPermissions();
+    focusInput();
+  }, []);
+
+  useEffect(() => {
+    if (!showScanner) {
+      focusInput();
+    }
+  }, [showScanner]);
+
   // ==================== COMPONENTE PRINCIPAL ====================
   
-  // Si no está configurado, mostrar pantalla de configuración inicial
   if (!isConfigured) {
     return renderConfiguracionInicial();
   }
 
-  // Pantalla principal
   return (
-    <TouchableOpacity 
-      style={styles.container} 
-      activeOpacity={1} 
-      onPress={handleScreenPress}
-    >
+    <View style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#F44336" />
         
-        {/* Header minimalista - botones de administración */}
-        <View style={styles.headerMinimal}>
-          <TouchableOpacity style={styles.adminButtonMinimal} onPress={mostrarPanelAdmin}>
-            <Ionicons name="shield-checkmark" size={26} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.configButtonMinimal} onPress={mostrarConfiguracion}>
-            <Ionicons name="settings" size={26} color="white" />
-          </TouchableOpacity>
-        </View>
+        {/* Header */}
+        {renderHeader()}
 
         {/* Marca de agua */}
         <View style={styles.watermark}>
@@ -1708,59 +1691,67 @@ export default function App() {
         {/* Contenido principal */}
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
           
-          {/* Estado de la base local - USANDO LA FUNCIÓN COMPLETA */}
-          {renderBaseLocalInfoCompleta()}
+          {/* Estado de la base local */}
+          {renderBaseLocalInfo()}
 
-          {/* Input de código - SIEMPRE FOCUS */}
-          <View style={styles.inputContainer}>
-            <TouchableOpacity 
-              style={styles.scanButton}
-              onPress={() => setShowScanner(true)}
-            >
-              <Ionicons name="qr-code" size={30} color="#666" />
-            </TouchableOpacity>
-            <TextInput
-              ref={inputRef}
-              style={styles.textInput}
-              placeholder="DNI o QR"
-              value={codigoInput}
-              onChangeText={setCodigoInput}
-              onSubmitEditing={() => procesarCodigo(codigoInput)}
-              autoCapitalize="none"
-              keyboardType="numeric"
-              returnKeyType="search"
-              autoFocus={true}
-              blurOnSubmit={false}
-              onBlur={() => {
-                // Solo hacer focus automático si estamos en pantalla principal
-                if (!showConfig && !showScanner && isConfigured) {
-                  focusInput();
-                }
-              }} // Volver a hacer focus si pierde el focus
-            />
-            <TouchableOpacity 
-              style={styles.searchButton}
-              onPress={() => procesarCodigo(codigoInput)}
-            >
-              <Ionicons name="search" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Resultado principal UNIFICADO */}
-          {renderResultadoPrincipal()}
-
-          {/* Indicador de carga */}
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Consultando...</Text>
+          {/* Input de código */}
+          <TouchableOpacity 
+            style={{ flex: 1, minHeight: 200 }}
+            activeOpacity={1} 
+            onPress={handleScreenPress}
+          >
+            <View style={styles.inputContainer}>
+              <TouchableOpacity 
+                style={styles.scanButton}
+                onPress={() => setShowScanner(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="qr-code" size={30} color="#666" />
+              </TouchableOpacity>
+              <TextInput
+                ref={inputRef}
+                style={styles.textInput}
+                placeholder="DNI o QR"
+                value={codigoInput}
+                onChangeText={setCodigoInput}
+                onSubmitEditing={() => procesarCodigo(codigoInput)}
+                autoCapitalize="none"
+                keyboardType="numeric"
+                returnKeyType="search"
+                autoFocus={true}
+                blurOnSubmit={false}
+                onBlur={() => {
+                  if (!showConfig && !showScanner && isConfigured) {
+                    focusInput();
+                  }
+                }}
+              />
+              <TouchableOpacity 
+                style={styles.searchButton}
+                onPress={() => procesarCodigo(codigoInput)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="search" size={24} color="#666" />
+              </TouchableOpacity>
             </View>
-          )}
+
+            {/* Resultado principal */}
+            {renderResultadoPrincipal()}
+
+            {/* Indicador de carga */}
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Consultando...</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </ScrollView>
 
-        {/* Versión clickeable en la parte inferior */}
+        {/* Versión clickeable */}
         <TouchableOpacity 
           style={styles.versionContainer}
           onPress={mostrarInfoVersion}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
           <Text style={styles.versionText}>
             v{getAppVersion().version} ({getAppVersion().buildNumber})
@@ -1771,6 +1762,6 @@ export default function App() {
         {renderModalConfiguracion()}
         {renderModalScanner()}
       </SafeAreaView>
-    </TouchableOpacity>
+    </View>
   );
 }
