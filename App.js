@@ -172,6 +172,120 @@ export default function App() {
     };
   };
 
+  // ==================== SOLUCIÓN SQLITE_FULL ====================
+  
+  const limpiarCacheAntesDeSave = async () => {
+    try {
+      console.log('🧹 Limpiando caché...');
+      const keys = await AsyncStorage.getAllKeys();
+      const keysToDelete = keys.filter(key => 
+        key.includes('temp_') || 
+        key.includes('cache_') || 
+        key.includes('old_') ||
+        (key.includes('baseLocal_') && key !== `baseLocal_${eventoId}`)
+      );
+      
+      if (keysToDelete.length > 0) {
+        await AsyncStorage.multiRemove(keysToDelete);
+        console.log(`✅ Limpieza: eliminadas ${keysToDelete.length} claves temporales`);
+      }
+      
+      // Forzar garbage collection si está disponible
+      if (global.gc) {
+        global.gc();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Error limpiando caché:', error);
+      return false;
+    }
+  };
+
+  const guardarConEstrategias = async (data) => {
+    const estrategias = [
+      {
+        nombre: 'Guardado Normal',
+        ejecutar: async () => {
+          const baseData = {
+            entradas: data,
+            fechaDescarga: new Date().toLocaleString('es-AR'),
+            eventoId: eventoId,
+            totalEntradas: data.length,
+            version: '1.0'
+          };
+          await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
+          return baseData;
+        }
+      },
+      {
+        nombre: 'Guardado Comprimido',
+        ejecutar: async () => {
+          const datosComprimidos = data.map(entrada => ({
+            dni: entrada.beneficiario_identificador,
+            est: entrada.estadoingreso,
+            nom: entrada.beneficiario_denominacion?.substring(0, 30) || '',
+            sec: entrada.sector_detalle?.substring(0, 15) || entrada.sector || '',
+            ing: entrada.ingreso_evento || false,
+            hor: entrada.ingreso_evento_hora || null
+          }));
+          
+          const baseData = {
+            entradas: datosComprimidos,
+            fechaDescarga: new Date().toLocaleString('es-AR'),
+            eventoId: eventoId,
+            totalEntradas: datosComprimidos.length,
+            version: '2.0',
+            comprimido: true
+          };
+          await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
+          return baseData;
+        }
+      },
+      {
+        nombre: 'Guardado Ultra-Comprimido',
+        ejecutar: async () => {
+          const datosUltraComprimidos = data.map(entrada => ({
+            d: entrada.beneficiario_identificador,
+            e: entrada.estadoingreso,
+            n: entrada.beneficiario_denominacion?.substring(0, 20) || '',
+            i: entrada.ingreso_evento || false
+          }));
+          
+          const baseData = {
+            entradas: datosUltraComprimidos,
+            fechaDescarga: new Date().toLocaleString('es-AR'),
+            eventoId: eventoId,
+            totalEntradas: datosUltraComprimidos.length,
+            version: '3.0',
+            ultraComprimido: true
+          };
+          await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
+          return baseData;
+        }
+      }
+    ];
+
+    for (const estrategia of estrategias) {
+      try {
+        console.log(`🔄 Intentando: ${estrategia.nombre}`);
+        const baseData = await estrategia.ejecutar();
+        
+        setBaseLocal(baseData.entradas);
+        setFechaDescarga(baseData.fechaDescarga);
+        setTotalEntradas(baseData.entradas.length);
+        
+        console.log(`✅ ${estrategia.nombre} exitoso: ${baseData.entradas.length} entradas`);
+        return baseData;
+      } catch (error) {
+        console.log(`❌ ${estrategia.nombre} falló:`, error.message);
+        if (estrategia === estrategias[estrategias.length - 1]) {
+          throw error; // Si es la última estrategia, relanzar el error
+        }
+      }
+    }
+  };
+
   // ==================== FUNCIONES DE FOCUS Y NAVEGACIÓN ====================
   
   const focusInput = () => {
@@ -402,14 +516,27 @@ export default function App() {
   const consultarLocal = (dni) => {
     console.log(`Consultando DNI ${dni} en base local de ${baseLocal.length} entradas`);
     
-    const entrada = baseLocal.find(ticket => 
-      ticket.beneficiario_identificador === dni
-    );
+    const entrada = baseLocal.find(ticket => {
+      // Manejar diferentes versiones de compresión
+      const dniTicket = ticket.beneficiario_identificador || ticket.dni || ticket.d;
+      return dniTicket === dni;
+    });
 
     if (entrada) {
       console.log('Entrada encontrada en base local:', entrada);
+      
+      // Expandir datos comprimidos para mostrar
+      const entradaExpandida = {
+        beneficiario_identificador: entrada.dni || entrada.d || entrada.beneficiario_identificador,
+        estadoingreso: entrada.est || entrada.e || entrada.estadoingreso,
+        beneficiario_denominacion: entrada.nom || entrada.n || entrada.beneficiario_denominacion || 'Nombre comprimido',
+        sector_detalle: entrada.sec || entrada.sector_detalle || 'Sector comprimido',
+        ingreso_evento: entrada.ing || entrada.i || entrada.ingreso_evento,
+        ingreso_evento_hora: entrada.hor || entrada.ingreso_evento_hora
+      };
+      
       mostrarResultadoUnificado({
-        ...entrada,
+        ...entradaExpandida,
         dni: dni,
         origen: 'offline'
       });
@@ -632,11 +759,14 @@ export default function App() {
   const marcarEntradaComoUsada = async (dni) => {
     try {
       const updatedBase = baseLocal.map(ticket => {
-        if (ticket.beneficiario_identificador === dni) {
+        const dniTicket = ticket.beneficiario_identificador || ticket.dni || ticket.d;
+        if (dniTicket === dni) {
           return {
             ...ticket,
             ingreso_evento: true,
-            ingreso_evento_hora: new Date().toISOString()
+            ingreso_evento_hora: new Date().toISOString(),
+            ing: true, // Para datos comprimidos
+            i: true   // Para datos ultra-comprimidos
           };
         }
         return ticket;
@@ -672,7 +802,7 @@ export default function App() {
 
     Alert.alert(
       'Descargar Base Completa',
-      'Esto descargará todas las entradas del evento para uso offline. ¿Continuar?',
+      'Esto descargará todas las entradas del evento. Se aplicará limpieza automática y compresión si es necesario.',
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
@@ -682,6 +812,11 @@ export default function App() {
             setDownloadProgress(0);
 
             try {
+              // PASO 1: Limpiar caché antes de empezar
+              console.log('🧹 Limpiando caché antes de descarga...');
+              await limpiarCacheAntesDeSave();
+              setDownloadProgress(5);
+
               if (!isLoggedIn) {
                 console.log('Iniciando login...');
                 const loginSuccess = await loginToAPI(username, password);
@@ -735,34 +870,32 @@ export default function App() {
                 throw new Error('No se recibieron datos válidos del servidor');
               }
 
-              setDownloadProgress(90);
+              setDownloadProgress(85);
 
-              const baseData = {
-                entradas: data,
-                fechaDescarga: new Date().toLocaleString('es-AR'),
-                eventoId: eventoId,
-                totalEntradas: data.length,
-                version: '1.0'
-              };
-
-              await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
-              
-              setBaseLocal(data);
-              setFechaDescarga(baseData.fechaDescarga);
-              setTotalEntradas(data.length);
+              // PASO 2: Intentar guardar con estrategias múltiples
+              const baseData = await guardarConEstrategias(data);
 
               setDownloadProgress(100);
 
+              const tipoCompresion = baseData.ultraComprimido ? 'ultra-comprimida' : 
+                                   baseData.comprimido ? 'comprimida' : 'normal';
+
               Alert.alert(
                 'Descarga Completa', 
-                `Se descargaron ${data.length.toLocaleString()} entradas correctamente.\n\nAhora puede usar la app sin conexión.`
+                `✅ Se descargaron ${data.length.toLocaleString()} entradas correctamente.\n\n` +
+                `💾 Datos guardados en versión ${tipoCompresion}.\n` +
+                `📱 Ahora puede usar la app sin conexión.`
               );
 
-              console.log(`Base offline guardada exitosamente: ${data.length} entradas`);
+              console.log(`Base offline guardada exitosamente: ${baseData.entradas.length} entradas`);
 
             } catch (error) {
-              console.error('Error descargando base:', error);
-              Alert.alert('Error', `No se pudo descargar la base: ${error.message}`);
+              console.error('❌ Error descargando base:', error);
+              Alert.alert(
+                'Error de Descarga', 
+                `No se pudo descargar la base: ${error.message}\n\n` +
+                `💡 Tip: Intente liberar espacio en su dispositivo y vuelva a intentar.`
+              );
             } finally {
               setIsDownloading(false);
               setDownloadProgress(0);
@@ -788,13 +921,14 @@ export default function App() {
       return;
     }
 
-    const entradasValidadas = baseLocal.filter(entrada => 
-      entrada.estadoingreso === 2 || entrada.ingresohabilitado === 'CONFIRMADO'
-    ).length;
+    const entradasValidadas = baseLocal.filter(entrada => {
+      const estado = entrada.estadoingreso || entrada.est || entrada.e;
+      return estado === 2;
+    }).length;
 
-    const entradasUsadas = baseLocal.filter(entrada => 
-      entrada.ingreso_evento === true || entrada.ingreso_evento_hora
-    ).length;
+    const entradasUsadas = baseLocal.filter(entrada => {
+      return entrada.ingreso_evento === true || entrada.ing === true || entrada.i === true || entrada.ingreso_evento_hora;
+    }).length;
 
     const entradasDisponibles = entradasValidadas - entradasUsadas;
 
@@ -854,7 +988,10 @@ export default function App() {
     let entradasValidas = 0;
     
     baseLocal.forEach(entrada => {
-      if (entrada.beneficiario_identificador && entrada.estadoingreso !== undefined) {
+      const dni = entrada.beneficiario_identificador || entrada.dni || entrada.d;
+      const estado = entrada.estadoingreso || entrada.est || entrada.e;
+      
+      if (dni && estado !== undefined) {
         entradasValidas++;
       } else {
         entradasCorruptas++;
@@ -1049,57 +1186,14 @@ export default function App() {
     }
   };
 
-  // ==================== FUNCIONES DE BOTONES (VERSIÓN SEGURA) ====================
+  // ==================== FUNCIONES DE BOTONES ====================
   
   const handleAdminPress = () => {
-    console.log('🔧 Admin button pressed');
-    
-    Alert.alert(
-      '🔧 Panel de Administración',
-      'Acceso directo para testing',
-      [
-        { text: 'Cancelar', style: 'cancel', onPress: () => focusInput() },
-        { 
-          text: 'Abrir Admin', 
-          onPress: () => {
-            try {
-              mostrarMenuAdminCompleto();
-            } catch (error) {
-              console.error('Error abriendo admin:', error);
-              Alert.alert('Error', 'No se pudo abrir el panel de administración');
-            }
-          }
-        }
-      ]
-    );
+    mostrarMenuAdminCompleto();
   };
 
   const handleConfigPress = () => {
-    console.log('⚙️ Config button pressed');
-    
-    if (!isConfigured) {
-      setShowConfig(true);
-      return;
-    }
-    
-    Alert.alert(
-      '⚙️ Configuración',
-      'Acceso directo para testing',
-      [
-        { text: 'Cancelar', style: 'cancel', onPress: () => focusInput() },
-        { 
-          text: 'Abrir Config', 
-          onPress: () => {
-            try {
-              setShowConfig(true);
-            } catch (error) {
-              console.error('Error abriendo config:', error);
-              Alert.alert('Error', 'No se pudo abrir la configuración');
-            }
-          }
-        }
-      ]
-    );
+    setShowConfig(true);
   };
 
   // ==================== COMPONENTES DE RENDERIZADO ====================
@@ -1198,6 +1292,12 @@ export default function App() {
   );
 
   const renderBaseLocalInfo = () => {
+    const tipoConexion = usarApiMolinetes ? 
+      `🖥️ MOLINETES - ${molinetesApiUrl}` :
+      baseLocal.length > 0 ? 
+        `☁️ OFFLINE - ${totalEntradas.toLocaleString()} entradas (${fechaDescarga})` :
+        '⚠️ Sin base offline - Toque Admin > Actualizar Base';
+
     return (
       <View style={styles.baseLocalContainerCompact}>
         <View style={styles.baseLocalHeaderCompact}>
@@ -1207,12 +1307,7 @@ export default function App() {
           </Text>
         </View>
         <Text style={styles.baseLocalInfoCompact}>
-          {usarApiMolinetes ? 
-            `🖥️ ONLINE - ${molinetesApiUrl}` :
-            baseLocal.length > 0 ? 
-              `☁️ OFFLINE - ${totalEntradas.toLocaleString()} entradas (${fechaDescarga})` :
-              '⚠️ Sin base offline - Toque Admin > Actualizar Base'
-          }
+          {tipoConexion}
         </Text>
         {renderProgressBar()}
       </View>
@@ -1225,7 +1320,7 @@ export default function App() {
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>UNO - CONTROL DE ACCESO</Text>
-        <Text style={styles.headerSubtitle}>Configuración Inicial</Text>
+        <Text style={styles.headerSubtitle}>Configuración</Text>
       </View>
 
       <KeyboardAvoidingView 
