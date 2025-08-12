@@ -13,7 +13,6 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +73,183 @@ const PERIMETROS = {
   }
 };
 
+// ==================== FUNCIONES DE UTILIDAD ====================
+function eliminarEspacios(cadena) {
+  return cadena ? cadena.split(' ').join('') : '';
+}
+
+// Función que replica la lógica del código C
+const validarComoC = (cadena) => {
+  console.log('🔧 Aplicando lógica del código C:', cadena);
+  
+  if (!cadena) return { dni: '', tipo: 1 };
+  
+  let extraido = null;
+  let tipo = 1; // por defecto
+
+  try {
+    // Patrón 1: extraer lo que está entre el primer y segundo '@'
+    // ^@([^@]+)@
+    const regex1 = /^@([^@]+)@/;
+    const match1 = cadena.match(regex1);
+    if (match1) {
+      extraido = match1[1];
+      tipo = 0;
+      console.log('✅ Regex 1 - Extraído entre primer y segundo @:', extraido);
+    }
+
+    // Si no se extrajo con el primer patrón, se prueba con el segundo
+    if (!extraido) {
+      // Patrón 2: extraer lo que está entre el cuarto y quinto '@'
+      // ^([^@]*@){4}([^@]+)@
+      const regex2 = /^([^@]*@){4}([^@]+)@/;
+      const match2 = cadena.match(regex2);
+      if (match2) {
+        extraido = match2[2];
+        tipo = 0;
+        console.log('✅ Regex 2 - Extraído entre cuarto y quinto @:', extraido);
+      }
+    }
+
+    // Si ninguno de los patrones coincide, se utiliza la cadena original
+    if (!extraido) {
+      extraido = cadena;
+      tipo = 1;
+      console.log('🔢 Sin regex - Usando cadena original:', extraido);
+    }
+
+    // Eliminar todos los espacios de la cadena extraída
+    let procesada = eliminarEspacios(extraido);
+    console.log('🧹 Después de eliminar espacios:', procesada);
+
+    // Si el primer carácter es 'M', 'F' o '0', se elimina
+    if (procesada && procesada.length > 0 && (procesada[0] === 'M' || procesada[0] === 'F' || procesada[0] === '0')) {
+      procesada = procesada.slice(1);
+      console.log('✂️ Quitado primer caracter (M/F/0):', procesada);
+    }
+
+    // Se asegura que el resultado no exceda 254 caracteres
+    let dni = procesada ? procesada.slice(0, 254) : '';
+
+    return { dni, tipo };
+  } catch (error) {
+    console.error('Error en validarComoC:', error);
+    return { dni: cadena || '', tipo: 1 };
+  }
+};
+
+// Función auxiliar para validación de QR dinámico en modo offline
+const aplicarValidacionQRDinamico = (dni) => {
+  if (!dni) return '';
+  
+  try {
+    // Limpiar solo números
+    const soloNumeros = dni.replace(/\D/g, '');
+    
+    if (soloNumeros.length >= 7 && soloNumeros.length <= 15) {
+      let dniProcesado = soloNumeros;
+      
+      // LÓGICA QR DINÁMICO: Si tiene más de 8 dígitos pero menos de 15, quitar últimos 4
+      if (dniProcesado.length > 8 && dniProcesado.length < 15) {
+        dniProcesado = dniProcesado.slice(0, -4);
+        console.log('🔄 QR dinámico detectado - DNI sin últimos 4 dígitos:', dniProcesado);
+      } else {
+        console.log('📱 DNI normal detectado:', dniProcesado);
+      }
+      
+      return dniProcesado;
+    }
+    
+    // Si no parece ser un DNI válido, devolver tal como está
+    console.log('⚠️ No parece ser DNI válido, devolviendo original:', dni);
+    return dni;
+  } catch (error) {
+    console.error('Error en aplicarValidacionQRDinamico:', error);
+    return dni;
+  }
+};
+
+const filtrarDNI = (barcode, modoOffline = false) => {
+  console.log('🔍 Procesando código:', barcode, '| Modo offline:', modoOffline);
+  
+  if (!barcode) return '';
+  
+  try {
+    // 1. VERIFICAR SI ES JWT
+    if (/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+$/.test(barcode)) {
+      try {
+        const parts = barcode.split('.');
+        if (parts.length === 3) {
+          let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (base64.length % 4) {
+            base64 += '=';
+          }
+          const payload = JSON.parse(atob(base64));
+          const dniFromJWT = payload.dni || barcode;
+          console.log('✅ JWT detectado, DNI extraído:', dniFromJWT);
+          
+          // En modo offline, aplicar validación de QR dinámico si es necesario
+          if (modoOffline) {
+            return aplicarValidacionQRDinamico(dniFromJWT);
+          }
+          
+          return dniFromJWT;
+        }
+      } catch (e) {
+        console.log('❌ Error parsing JWT:', e);
+      }
+    }
+
+    // 2. APLICAR LÓGICA DEL CÓDIGO C
+    const resultado = validarComoC(barcode);
+    let dniFinal = resultado.dni;
+
+    // 3. PROCESAR SEGÚN EL MODO
+    if (modoOffline) {
+      // 🏠 MODO OFFLINE: Aplicar validación de QR dinámico
+      dniFinal = aplicarValidacionQRDinamico(dniFinal);
+    } else {
+      // ☁️ MODO API: Enviar código crudo (pero limpio)
+      // Solo limpiar números si parece ser un DNI válido
+      const soloNumeros = dniFinal ? dniFinal.replace(/\D/g, '') : '';
+      if (soloNumeros.length >= 6 && soloNumeros.length <= 15) {
+        dniFinal = soloNumeros;
+        console.log('🔢 API Mode - DNI limpiado (solo números):', dniFinal);
+      }
+    }
+
+    console.log('✅ DNI final extraído:', dniFinal);
+    return dniFinal || '';
+  } catch (error) {
+    console.error('Error en filtrarDNI:', error);
+    return barcode || '';
+  }
+};
+
+const getAppVersion = () => {
+  try {
+    const version = Constants.expoConfig?.version || Constants.manifest?.version || '0.8.0';
+    const buildNumber = Platform.OS === 'ios'
+      ? Constants.expoConfig?.ios?.buildNumber || Constants.manifest?.ios?.buildNumber || '1'
+      : Constants.expoConfig?.android?.versionCode || Constants.manifest?.android?.versionCode || 8;
+
+    return {
+      version: version,
+      buildNumber: buildNumber.toString(),
+      fullVersion: `${version} (${buildNumber})`,
+      platform: Platform.OS.toUpperCase()
+    };
+  } catch (error) {
+    console.log('Error getting app version:', error);
+    return {
+      version: '0.8.0',
+      buildNumber: '1',
+      fullVersion: '0.8.0 (5)',
+      platform: 'UNKNOWN'
+    };
+  }
+};
+
 export default function App() {
   // ==================== ESTADOS PRINCIPALES ====================
   
@@ -123,54 +299,6 @@ export default function App() {
   // Referencias
   const inputRef = useRef(null);
   const cameraRef = useRef(null);
-
-  // ==================== FUNCIONES DE UTILIDAD ====================
-  
-  const filtrarDNI = (barcode) => {
-    // Verificar si es JWT
-    if (/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+$/.test(barcode)) {
-      try {
-        const parts = barcode.split('.');
-        if (parts.length === 3) {
-          let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          while (base64.length % 4) {
-            base64 += '=';
-          }
-          const payload = JSON.parse(atob(base64));
-          return payload.dni || barcode;
-        }
-      } catch (e) {
-        console.log('Error parsing JWT:', e);
-      }
-    }
-
-    // Verificar formato de código de barras de DNI argentino
-    const datadni = barcode.split('@');
-    if (datadni.length === 8 || datadni.length === 9) {
-      return datadni[4].replace(/\D/g, '').replace(/^0+/, '');
-    } else if (datadni.length > 9) {
-      return datadni[1].replace(/\D/g, '').replace(/^0+/, '');
-    } else if (datadni.length === 2) {
-      return datadni[0].replace(/\D/g, '').replace(/^0+/, '');
-    }
-
-    // Fallback: extraer solo números
-    return barcode.replace(/\D/g, '').replace(/^0+/, '');
-  };
-
-  const getAppVersion = () => {
-    const version = Constants.expoConfig?.version || Constants.manifest?.version || '0.8.0';
-    const buildNumber = Platform.OS === 'ios' 
-      ? Constants.expoConfig?.ios?.buildNumber || '1'
-      : Constants.expoConfig?.android?.versionCode || 8;
-
-    return {
-      version: version,
-      buildNumber: buildNumber,
-      fullVersion: `${version} (${buildNumber})`,
-      platform: Platform.OS.toUpperCase()
-    };
-  };
 
   // ==================== SOLUCIÓN SQLITE_FULL ====================
   
@@ -359,8 +487,70 @@ export default function App() {
     return { valido: coincide };
   };
 
-  // ==================== FUNCIONES DE RESULTADO ====================
-  
+  // ==================== FUNCIÓN PARA QUEMAR ENTRADA EN API ONLINE ====================
+
+  const quemarEntradaAPI = async (dni, entradaData) => {
+    try {
+      console.log(`🔥 Quemando entrada para DNI: ${dni}`);
+      
+      // URL para marcar ingreso en la API
+      const url = `${apiUrl}/RegistrarIngresoEvento`;
+      
+      const datosIngreso = {
+        eventoId: eventoId,
+        documento: dni,
+        beneficiario_identificador: dni,
+        ingreso_evento: true,
+        ingreso_evento_hora: new Date().toISOString(),
+        puerta: puerta,
+        molinete: molinete,
+        // Incluir otros datos necesarios de la entrada
+        ...entradaData
+      };
+
+      console.log('Datos a enviar para quemar entrada:', datosIngreso);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        credentials: 'include',
+        body: JSON.stringify(datosIngreso)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const responseText = await response.text();
+      
+      // Verificar si la sesión expiró
+      if (responseText.trim().startsWith('<!DOCTYPE html>')) {
+        setIsLoggedIn(false);
+        throw new Error('Sesión expirada al quemar entrada');
+      }
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.log('Respuesta no es JSON, probablemente éxito:', responseText);
+        result = { success: true, message: 'Entrada quemada correctamente' };
+      }
+
+      console.log('✅ Entrada quemada exitosamente:', result);
+      return { success: true, data: result };
+
+    } catch (error) {
+      console.error('❌ Error quemando entrada:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // ==================== FUNCIÓN MODIFICADA mostrarResultadoUnificado ====================
+
   const mostrarResultadoUnificado = (datos) => {
     let mensaje = '';
     let color = '';
@@ -371,7 +561,9 @@ export default function App() {
     let dniFinal = datos.dni || 'Sin DNI';
 
     if (datos.origen === 'molinetes') {
-      // Lógica para API de molinetes
+      // 🖥️ API MOLINETES - SIEMPRE FUNCIONA COMO MOLINETE
+      // El sistema Python ya maneja el quemado automáticamente
+      
       if (datos.mensaje && datos.mensaje.toLowerCase().includes('quemado')) {
         mensaje = '❌ ENTRADA YA UTILIZADA ❌';
         color = '#F44336';
@@ -381,9 +573,9 @@ export default function App() {
         color = '#FF9800';
         estadoFinal = 'PERÍMETRO INCORRECTO';
       } else if (datos.pasa) {
-        mensaje = isPerimetro ? '✅ ACCESO AUTORIZADO ✅' : '✅ ENTRADA VÁLIDA ✅';
+        mensaje = '✅ ENTRADA VÁLIDA - ACCESO PERMITIDO ✅';
         color = '#4CAF50';
-        estadoFinal = 'VÁLIDA';
+        estadoFinal = 'VÁLIDA Y QUEMADA';
       } else {
         mensaje = '❌ ACCESO DENEGADO ❌';
         color = '#F44336';
@@ -391,11 +583,11 @@ export default function App() {
       }
 
       nombreFinal = 'Sin datos de nombre';
-      sectorFinal = `Puerta: ${datos.puerta}`;
+      sectorFinal = `Puerta: ${datos.puerta} | Molinete: ${molinete}`;
       horaFinal = new Date().toLocaleTimeString();
       
     } else {
-      // Lógica para API de eventos
+      // ☁️ API EVENTOS - PUEDE SER PERÍMETRO O MOLINETE
       const yaIngreso = datos.ingreso_evento === true || datos.ingreso_evento_hora;
       
       if (yaIngreso) {
@@ -406,12 +598,25 @@ export default function App() {
         const validacionPerimetro = validarPerimetroEntrada(datos);
         
         if (validacionPerimetro.valido) {
-          mensaje = isPerimetro ? '✅ ACCESO AUTORIZADO ✅' : '✅ ENTRADA VÁLIDA ✅';
-          color = '#4CAF50';
-          estadoFinal = 'VÁLIDA';
-          
-          if (!isPerimetro) {
-            marcarEntradaComoUsada(datos.dni);
+          if (isPerimetro) {
+            // MODO PERÍMETRO - Solo validar
+            mensaje = '✅ ACCESO AUTORIZADO ✅';
+            color = '#4CAF50';
+            estadoFinal = 'VÁLIDA - PERÍMETRO';
+          } else {
+            // MODO MOLINETE - Validar y quemar
+            mensaje = '✅ ENTRADA VÁLIDA - ACCESO PERMITIDO ✅';
+            color = '#4CAF50';
+            estadoFinal = 'VÁLIDA Y QUEMADA';
+            
+            // Solo quemar si es offline (base local)
+            if (datos.origen === 'offline') {
+              marcarEntradaComoUsada(datos.dni);
+              console.log('🔥 Entrada quemada en base local');
+            } else {
+              console.log('⚠️ API online no puede quemar entradas');
+              estadoFinal = 'VÁLIDA - SIN QUEMAR';
+            }
           }
         } else {
           mensaje = '⚠️ PERÍMETRO INCORRECTO ⚠️';
@@ -451,14 +656,19 @@ export default function App() {
   // ==================== FUNCIONES DE CONSULTA ====================
   
   const procesarCodigo = (codigo) => {
-    if (codigo.length < 3) {
+    if (!codigo || codigo.length < 3) {
       Alert.alert('Error', 'Ingrese un código válido', [
         { text: 'OK', onPress: () => resetearPantalla() }
       ]);
       return;
     }
     
-    const dni = filtrarDNI(codigo);
+    // 🔄 DETERMINAR MODO OFFLINE
+    const modoOffline = baseLocal.length > 0 && !usarApiMolinetes;
+    
+    // 🔄 LLAMAR filtrarDNI CON EL MODO CORRECTO
+    const dni = filtrarDNI(codigo, modoOffline);
+    
     consultarAPI(dni);
   };
 
@@ -471,8 +681,9 @@ export default function App() {
     });
 
     try {
+      // 🔄 PARA API MOLINETES: CÓDIGO YA VIENE PROCESADO CORRECTAMENTE
       const resultado = await consultarCodigoMolinetes(
-        codigo,
+        codigo, // <-- codigo YA está procesado correctamente
         puerta,
         molinete,
         isPerimetro ? "0" : "1"
@@ -558,7 +769,8 @@ export default function App() {
   };
 
   const consultarAPI = async (dni) => {
-    if (!eventoId) {
+    // CORREGIR: Validar eventoId solo si NO usa API molinetes
+    if (!usarApiMolinetes && !eventoId) {
       Alert.alert('Error', 'Debe configurar el ID del evento primero');
       return;
     }
@@ -568,17 +780,20 @@ export default function App() {
       return;
     }
 
+    // 🖥️ API MOLINETES
     if (usarApiMolinetes) {
       consultarApiMolinetes(dni);
       return;
     }
 
+    // ☁️ BASE LOCAL (offline)
     if (baseLocal.length > 0) {
       console.log('Usando base local para consultar');
       consultarLocal(dni);
       return;
     }
 
+    // ☁️ API EVENTOS (online)
     console.log('Consultando API online...');
     
     if (!isLoggedIn && (username && password)) {
@@ -998,16 +1213,21 @@ export default function App() {
       }
     });
 
+    const opcionesBotones = [
+      { text: 'OK', style: 'cancel' }
+    ];
+
+    if (entradasCorruptas > 0) {
+      opcionesBotones.unshift({ text: 'Redescargar', onPress: descargarBaseOffline });
+    }
+
     Alert.alert(
       '🔍 Validación de Integridad',
       `✅ Entradas válidas: ${entradasValidas}\n` +
       `❌ Entradas corruptas: ${entradasCorruptas}\n` +
       `📦 Total: ${baseLocal.length}\n\n` +
       `${entradasCorruptas === 0 ? '✅ Base íntegra' : '⚠️ Recomendado redescargar'}`,
-      [
-        entradasCorruptas > 0 && { text: 'Redescargar', onPress: descargarBaseOffline },
-        { text: 'OK', style: 'cancel' }
-      ].filter(Boolean)
+      opcionesBotones
     );
   };
 
@@ -1129,8 +1349,11 @@ export default function App() {
 
   const guardarConfiguracion = async () => {
     try {
+      // Si usa API molinetes, forzar modo molinete
+      const modoPerimetro = usarApiMolinetes ? false : isPerimetro;
+      
       const config = {
-        isPerimetro,
+        isPerimetro: modoPerimetro,
         eventoId,
         apiUrl,
         puerta,
@@ -1144,7 +1367,14 @@ export default function App() {
         perimetroSeleccionado,
         modoVisitante
       };
+      
       await AsyncStorage.setItem('appConfig', JSON.stringify(config));
+      
+      // Actualizar el estado local también
+      if (usarApiMolinetes) {
+        setIsPerimetro(false);
+      }
+      
       setIsConfigured(true);
       setShowConfig(false);
       
@@ -1314,6 +1544,97 @@ export default function App() {
     );
   };
 
+  // ==================== MODAL SCANNER ====================
+  const renderModalScanner = () => (
+    <Modal visible={showScanner} animationType="slide">
+      <View style={styles.scannerContainer}>
+        {hasPermission === null ? (
+          <View style={styles.scannerPlaceholder}>
+            <Ionicons name="camera-outline" size={80} color="white" />
+            <Text style={styles.scannerPlaceholderText}>
+              📷 Solicitando permisos...
+            </Text>
+          </View>
+        ) : hasPermission === false ? (
+          <View style={styles.scannerPlaceholder}>
+            <Ionicons name="camera-off-outline" size={80} color="white" />
+            <Text style={styles.scannerPlaceholderText}>
+              📷 Sin acceso a la cámara
+            </Text>
+            <TouchableOpacity 
+              style={styles.manualInputButton}
+              onPress={() => setShowScanner(false)}
+            >
+              <Text style={styles.manualInputButtonText}>
+                Usar Input Manual
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : !isCameraAvailable || !CameraView ? (
+          <View style={styles.scannerPlaceholder}>
+            <Ionicons name="construct-outline" size={80} color="white" />
+            <Text style={styles.scannerPlaceholderText}>
+              📱 Scanner no disponible
+            </Text>
+            <Text style={styles.scannerPlaceholderSubtext}>
+              {Platform.OS === 'ios' 
+                ? 'Instale expo-camera para usar el scanner'
+                : 'Error cargando módulo de cámara'
+              }
+            </Text>
+            <TouchableOpacity 
+              style={styles.manualInputButton}
+              onPress={() => setShowScanner(false)}
+            >
+              <Text style={styles.manualInputButtonText}>
+                Usar Input Manual
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <CameraView
+              ref={cameraRef}
+              style={StyleSheet.absoluteFillObject}
+              facing="back"
+              onBarcodeScanned={handleBarcodeScanned}
+              barcodeScannerSettings={{
+                barcodeTypes: ["qr", "pdf417", "datamatrix", "code128", "code39"],
+              }}
+            />
+            
+            <View style={styles.scannerOverlay}>
+              <View style={styles.scannerFrame}>
+                <View style={styles.scannerCorner} />
+                <View style={[styles.scannerCorner, styles.scannerCornerTopRight]} />
+                <View style={[styles.scannerCorner, styles.scannerCornerBottomLeft]} />
+                <View style={[styles.scannerCorner, styles.scannerCornerBottomRight]} />
+              </View>
+              <Text style={styles.scannerText}>
+                Apunte la cámara hacia el código QR o código de barras
+              </Text>
+              <TouchableOpacity 
+                style={styles.manualInputButton}
+                onPress={() => setShowScanner(false)}
+              >
+                <Text style={styles.manualInputButtonText}>
+                  Input Manual
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+        
+        <TouchableOpacity
+          style={styles.closeScannerButton}
+          onPress={() => setShowScanner(false)}
+        >
+          <Ionicons name="close" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+
   const renderConfiguracionInicial = () => (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#F44336" />
@@ -1345,7 +1666,7 @@ export default function App() {
                 <Text style={[styles.modeButtonText, !usarApiMolinetes && styles.modeButtonTextActive]}>
                   API EVENTOS
                 </Text>
-                <Text style={styles.modeButtonSubtext}>Sistema original</Text>
+                <Text style={styles.modeButtonSubtext}>Perímetro/Molinete offline</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -1355,35 +1676,38 @@ export default function App() {
                 <Text style={[styles.modeButtonText, usarApiMolinetes && styles.modeButtonTextActive]}>
                   API MOLINETES
                 </Text>
-                <Text style={styles.modeButtonSubtext}>Sistema Python</Text>
+                <Text style={styles.modeButtonSubtext}>Molinete automático</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>Modo de operación</Text>
-            <View style={styles.modeButtons}>
-              <TouchableOpacity
-                style={[styles.modeButton, isPerimetro && styles.modeButtonActive]}
-                onPress={() => setIsPerimetro(true)}
-              >
-                <Text style={[styles.modeButtonText, isPerimetro && styles.modeButtonTextActive]}>
-                  PERÍMETRO
-                </Text>
-                <Text style={styles.modeButtonSubtext}>Solo validación</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modeButton, !isPerimetro && styles.modeButtonActive]}
-                onPress={() => setIsPerimetro(false)}
-              >
-                <Text style={[styles.modeButtonText, !isPerimetro && styles.modeButtonTextActive]}>
-                  MOLINETE
-                </Text>
-                <Text style={styles.modeButtonSubtext}>Controla ingreso</Text>
-              </TouchableOpacity>
+          {/* SOLO MOSTRAR MODO PERÍMETRO/MOLINETE SI NO USA API MOLINETES */}
+          {!usarApiMolinetes && (
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>Modo de operación</Text>
+              <View style={styles.modeButtons}>
+                <TouchableOpacity
+                  style={[styles.modeButton, isPerimetro && styles.modeButtonActive]}
+                  onPress={() => setIsPerimetro(true)}
+                >
+                  <Text style={[styles.modeButtonText, isPerimetro && styles.modeButtonTextActive]}>
+                    PERÍMETRO
+                  </Text>
+                  <Text style={styles.modeButtonSubtext}>Solo validación</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modeButton, !isPerimetro && styles.modeButtonActive]}
+                  onPress={() => setIsPerimetro(false)}
+                >
+                  <Text style={[styles.modeButtonText, !isPerimetro && styles.modeButtonTextActive]}>
+                    MOLINETE
+                  </Text>
+                  <Text style={styles.modeButtonSubtext}>Controla ingreso</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
 
           {!usarApiMolinetes && (
             <>
@@ -1487,96 +1811,6 @@ export default function App() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-
-  const renderModalScanner = () => (
-    <Modal visible={showScanner} animationType="slide">
-      <View style={styles.scannerContainer}>
-        {hasPermission === null ? (
-          <View style={styles.scannerPlaceholder}>
-            <Ionicons name="camera-outline" size={80} color="white" />
-            <Text style={styles.scannerPlaceholderText}>
-              📷 Solicitando permisos...
-            </Text>
-          </View>
-        ) : hasPermission === false ? (
-          <View style={styles.scannerPlaceholder}>
-            <Ionicons name="camera-off-outline" size={80} color="white" />
-            <Text style={styles.scannerPlaceholderText}>
-              📷 Sin acceso a la cámara
-            </Text>
-            <TouchableOpacity 
-              style={styles.manualInputButton}
-              onPress={() => setShowScanner(false)}
-            >
-              <Text style={styles.manualInputButtonText}>
-                Usar Input Manual
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : !isCameraAvailable || !CameraView ? (
-          <View style={styles.scannerPlaceholder}>
-            <Ionicons name="construct-outline" size={80} color="white" />
-            <Text style={styles.scannerPlaceholderText}>
-              📱 Scanner no disponible
-            </Text>
-            <Text style={styles.scannerPlaceholderSubtext}>
-              {Platform.OS === 'ios' 
-                ? 'Instale expo-camera para usar el scanner'
-                : 'Error cargando módulo de cámara'
-              }
-            </Text>
-            <TouchableOpacity 
-              style={styles.manualInputButton}
-              onPress={() => setShowScanner(false)}
-            >
-              <Text style={styles.manualInputButtonText}>
-                Usar Input Manual
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <CameraView
-              ref={cameraRef}
-              style={StyleSheet.absoluteFillObject}
-              facing="back"
-              onBarcodeScanned={handleBarcodeScanned}
-              barcodeScannerSettings={{
-                barcodeTypes: ["qr", "pdf417", "datamatrix", "code128", "code39"],
-              }}
-            />
-            
-            <View style={styles.scannerOverlay}>
-              <View style={styles.scannerFrame}>
-                <View style={styles.scannerCorner} />
-                <View style={[styles.scannerCorner, styles.scannerCornerTopRight]} />
-                <View style={[styles.scannerCorner, styles.scannerCornerBottomLeft]} />
-                <View style={[styles.scannerCorner, styles.scannerCornerBottomRight]} />
-              </View>
-              <Text style={styles.scannerText}>
-                Apunte la cámara hacia el código QR o código de barras
-              </Text>
-              <TouchableOpacity 
-                style={styles.manualInputButton}
-                onPress={() => setShowScanner(false)}
-              >
-                <Text style={styles.manualInputButtonText}>
-                  Input Manual
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-        
-        <TouchableOpacity
-          style={styles.closeScannerButton}
-          onPress={() => setShowScanner(false)}
-        >
-          <Ionicons name="close" size={30} color="white" />
-        </TouchableOpacity>
-      </View>
-    </Modal>
   );
 
   const renderModalConfiguracion = () => (
