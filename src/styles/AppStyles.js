@@ -1473,6 +1473,57 @@ const styles = StyleSheet.create({
       width: '70%',
     },
   },
-});
+
+  
+  hamburgerMenu: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    borderRadius: 15,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    paddingVertical: 20,
+    paddingHorizontal: 0,
+    borderWidth: 1,
+  },
+  hamburgerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  hamburgerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 10,
+  },
+  hamburgerDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: 20,
+    marginVertical: 10,
+  },
+  hamburgerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    marginHorizontal: 10,
+    borderRadius: 10,
+  },
+  hamburgerItemText: {
+    fontSize: 16,
+    flex: 1,
+    marginLeft: 15,
+  },
+  }
+);
 
 export default styles;

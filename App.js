@@ -34,9 +34,7 @@ try {
   Camera = ExpoCamera.Camera;
   CameraView = ExpoCamera.CameraView;
   isCameraAvailable = true;
-  console.log('expo-camera cargado correctamente');
 } catch (error) {
-  console.log('expo-camera no disponible:', error.message);
   Camera = null;
   CameraView = null;
   isCameraAvailable = false;
@@ -47,17 +45,17 @@ const { width } = Dimensions.get('window');
 // ==================== CONFIGURACIÓN DE PERÍMETROS ====================
 const PERIMETROS = {
   BOSQUE: {
-    nombre: 'Bosque',
+    nombre: 'LAGO & 1 Y 54',
     puertas: ['2', '3', '4', '5', '6', '7', '8', '9', '10'],
     icono: '🌳'
   },
   VIP: {
-    nombre: 'VIP',
+    nombre: '2 Y 55',
     puertas: ['1', 'VIP'],
     icono: '👑'
   },
   ZONA_ALTA: {
-    nombre: 'Zona Alta',
+    nombre: 'POPULAR 57',
     puertas: ['17', '18', '19', '20'],
     icono: '🔢'
   },
@@ -78,104 +76,75 @@ function eliminarEspacios(cadena) {
   return cadena ? cadena.split(' ').join('') : '';
 }
 
-// Función que replica la lógica del código C
 const validarComoC = (cadena) => {
-  console.log('🔧 Aplicando lógica del código C:', cadena);
-  
   if (!cadena) return { dni: '', tipo: 1 };
   
   let extraido = null;
-  let tipo = 1; // por defecto
+  let tipo = 1;
 
   try {
-    // Patrón 1: extraer lo que está entre el primer y segundo '@'
-    // ^@([^@]+)@
     const regex1 = /^@([^@]+)@/;
     const match1 = cadena.match(regex1);
     if (match1) {
       extraido = match1[1];
       tipo = 0;
-      console.log('✅ Regex 1 - Extraído entre primer y segundo @:', extraido);
     }
 
-    // Si no se extrajo con el primer patrón, se prueba con el segundo
     if (!extraido) {
-      // Patrón 2: extraer lo que está entre el cuarto y quinto '@'
-      // ^([^@]*@){4}([^@]+)@
       const regex2 = /^([^@]*@){4}([^@]+)@/;
       const match2 = cadena.match(regex2);
       if (match2) {
         extraido = match2[2];
         tipo = 0;
-        console.log('✅ Regex 2 - Extraído entre cuarto y quinto @:', extraido);
       }
     }
 
-    // Si ninguno de los patrones coincide, se utiliza la cadena original
     if (!extraido) {
       extraido = cadena;
       tipo = 1;
-      console.log('🔢 Sin regex - Usando cadena original:', extraido);
     }
 
-    // Eliminar todos los espacios de la cadena extraída
     let procesada = eliminarEspacios(extraido);
-    console.log('🧹 Después de eliminar espacios:', procesada);
 
-    // Si el primer carácter es 'M', 'F' o '0', se elimina
     if (procesada && procesada.length > 0 && (procesada[0] === 'M' || procesada[0] === 'F' || procesada[0] === '0')) {
       procesada = procesada.slice(1);
-      console.log('✂️ Quitado primer caracter (M/F/0):', procesada);
     }
 
-    // Se asegura que el resultado no exceda 254 caracteres
     let dni = procesada ? procesada.slice(0, 254) : '';
 
     return { dni, tipo };
   } catch (error) {
-    console.error('Error en validarComoC:', error);
     return { dni: cadena || '', tipo: 1 };
   }
 };
 
-// Función auxiliar para validación de QR dinámico en modo offline
 const aplicarValidacionQRDinamico = (dni) => {
   if (!dni) return '';
   
   try {
-    // Limpiar solo números
     const soloNumeros = dni.replace(/\D/g, '');
     
     if (soloNumeros.length >= 7 && soloNumeros.length <= 15) {
       let dniProcesado = soloNumeros;
       
-      // LÓGICA QR DINÁMICO: Si tiene más de 8 dígitos pero menos de 15, quitar últimos 4
       if (dniProcesado.length > 8 && dniProcesado.length < 15) {
         dniProcesado = dniProcesado.slice(0, -4);
-        console.log('🔄 QR dinámico detectado - DNI sin últimos 4 dígitos:', dniProcesado);
-      } else {
-        console.log('📱 DNI normal detectado:', dniProcesado);
       }
       
       return dniProcesado;
     }
     
-    // Si no parece ser un DNI válido, devolver tal como está
-    console.log('⚠️ No parece ser DNI válido, devolviendo original:', dni);
     return dni;
   } catch (error) {
-    console.error('Error en aplicarValidacionQRDinamico:', error);
     return dni;
   }
 };
 
 const filtrarDNI = (barcode, modoOffline = false) => {
-  console.log('🔍 Procesando código:', barcode, '| Modo offline:', modoOffline);
-  
   if (!barcode) return '';
   
   try {
-    // 1. VERIFICAR SI ES JWT
+    // Verificar si es JWT
     if (/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+$/.test(barcode)) {
       try {
         const parts = barcode.split('.');
@@ -186,9 +155,7 @@ const filtrarDNI = (barcode, modoOffline = false) => {
           }
           const payload = JSON.parse(atob(base64));
           const dniFromJWT = payload.dni || barcode;
-          console.log('✅ JWT detectado, DNI extraído:', dniFromJWT);
           
-          // En modo offline, aplicar validación de QR dinámico si es necesario
           if (modoOffline) {
             return aplicarValidacionQRDinamico(dniFromJWT);
           }
@@ -196,32 +163,24 @@ const filtrarDNI = (barcode, modoOffline = false) => {
           return dniFromJWT;
         }
       } catch (e) {
-        console.log('❌ Error parsing JWT:', e);
+        // JWT parsing failed, continue with C logic
       }
     }
 
-    // 2. APLICAR LÓGICA DEL CÓDIGO C
     const resultado = validarComoC(barcode);
     let dniFinal = resultado.dni;
 
-    // 3. PROCESAR SEGÚN EL MODO
     if (modoOffline) {
-      // 🏠 MODO OFFLINE: Aplicar validación de QR dinámico
       dniFinal = aplicarValidacionQRDinamico(dniFinal);
     } else {
-      // ☁️ MODO API: Enviar código crudo (pero limpio)
-      // Solo limpiar números si parece ser un DNI válido
       const soloNumeros = dniFinal ? dniFinal.replace(/\D/g, '') : '';
       if (soloNumeros.length >= 6 && soloNumeros.length <= 15) {
         dniFinal = soloNumeros;
-        console.log('🔢 API Mode - DNI limpiado (solo números):', dniFinal);
       }
     }
 
-    console.log('✅ DNI final extraído:', dniFinal);
     return dniFinal || '';
   } catch (error) {
-    console.error('Error en filtrarDNI:', error);
     return barcode || '';
   }
 };
@@ -240,7 +199,6 @@ const getAppVersion = () => {
       platform: Platform.OS.toUpperCase()
     };
   } catch (error) {
-    console.log('Error getting app version:', error);
     return {
       version: '0.8.0',
       buildNumber: '1',
@@ -296,15 +254,49 @@ export default function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
+  const [showMenuHamburguesa, setShowMenuHamburguesa] = useState(false);
+const [showPasswordModal, setShowPasswordModal] = useState(false);
+const [passwordInput, setPasswordInput] = useState('');
+const [actionAfterAuth, setActionAfterAuth] = useState('');
+
   // Referencias
   const inputRef = useRef(null);
   const cameraRef = useRef(null);
 
-  // ==================== SOLUCIÓN SQLITE_FULL ====================
+  // ==================== FUNCIÓN DE COLORES DINÁMICOS ====================
+  
+  const getAppColors = () => {
+    if (usarApiMolinetes) {
+      // API MOLINETES - Colores ROJOS (quema entradas)
+      return {
+        primary: '#F44336',        // Rojo principal
+        primaryDark: '#D32F2F',    // Rojo oscuro
+        primaryLight: '#FFCDD2',   // Rojo claro
+        headerBg: '#F44336',       // Header rojo
+        headerText: 'white',       // Texto blanco en header
+        statusBar: '#D32F2F',      // Status bar rojo oscuro
+        watermarkText: '#F44336',  // Watermark rojo
+        buttonBg: 'rgba(255,255,255,0.1)', // Botones semi-transparentes blancos
+      };
+    } else {
+      // API EVENTOS - Colores BLANCOS (modo offline/perímetro)
+      return {
+        primary: '#FFFFFF',        // Blanco principal
+        primaryDark: '#F5F5F5',    // Gris muy claro
+        primaryLight: '#FAFAFA',   // Blanco hueso
+        headerBg: '#FFFFFF',       // Header blanco
+        headerText: '#333333',     // Texto oscuro en header
+        statusBar: '#E0E0E0',      // Status bar gris claro
+        watermarkText: '#666666',  // Watermark gris
+        buttonBg: 'rgba(0,0,0,0.1)', // Botones semi-transparentes negros
+      };
+    }
+  };
+
+  // ==================== FUNCIONES DE ALMACENAMIENTO ====================
   
   const limpiarCacheAntesDeSave = async () => {
     try {
-      console.log('🧹 Limpiando caché...');
       const keys = await AsyncStorage.getAllKeys();
       const keysToDelete = keys.filter(key => 
         key.includes('temp_') || 
@@ -315,17 +307,14 @@ export default function App() {
       
       if (keysToDelete.length > 0) {
         await AsyncStorage.multiRemove(keysToDelete);
-        console.log(`✅ Limpieza: eliminadas ${keysToDelete.length} claves temporales`);
       }
       
-      // Forzar garbage collection si está disponible
       if (global.gc) {
         global.gc();
       }
       
       return true;
     } catch (error) {
-      console.error('❌ Error limpiando caché:', error);
       return false;
     }
   };
@@ -396,19 +385,16 @@ export default function App() {
 
     for (const estrategia of estrategias) {
       try {
-        console.log(`🔄 Intentando: ${estrategia.nombre}`);
         const baseData = await estrategia.ejecutar();
         
         setBaseLocal(baseData.entradas);
         setFechaDescarga(baseData.fechaDescarga);
         setTotalEntradas(baseData.entradas.length);
         
-        console.log(`✅ ${estrategia.nombre} exitoso: ${baseData.entradas.length} entradas`);
         return baseData;
       } catch (error) {
-        console.log(`❌ ${estrategia.nombre} falló:`, error.message);
         if (estrategia === estrategias[estrategias.length - 1]) {
-          throw error; // Si es la última estrategia, relanzar el error
+          throw error;
         }
       }
     }
@@ -433,7 +419,9 @@ export default function App() {
 
   const handleScreenPress = () => {
     if (!showConfig && !showScanner && isConfigured) {
-      focusInput();
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     }
   };
 
@@ -451,7 +439,6 @@ export default function App() {
 
     let puertas_entrada = [];
     
-    // Extraer puertas de la entrada
     if (entrada.puerta) {
       const puertaStr = entrada.puerta.toString().toUpperCase();
       const numerosPuerta = puertaStr.match(/\d+/g) || [];
@@ -470,7 +457,6 @@ export default function App() {
       if (sectorStr.includes('CODO')) puertas_entrada.push('CODO');
     }
 
-    // Manejar modo visitante
     if (modoVisitante) {
       if (puertas_entrada.includes('CODO')) {
         puertas_entrada = ['VISITANTE'];
@@ -487,70 +473,6 @@ export default function App() {
     return { valido: coincide };
   };
 
-  // ==================== FUNCIÓN PARA QUEMAR ENTRADA EN API ONLINE ====================
-
-  const quemarEntradaAPI = async (dni, entradaData) => {
-    try {
-      console.log(`🔥 Quemando entrada para DNI: ${dni}`);
-      
-      // URL para marcar ingreso en la API
-      const url = `${apiUrl}/RegistrarIngresoEvento`;
-      
-      const datosIngreso = {
-        eventoId: eventoId,
-        documento: dni,
-        beneficiario_identificador: dni,
-        ingreso_evento: true,
-        ingreso_evento_hora: new Date().toISOString(),
-        puerta: puerta,
-        molinete: molinete,
-        // Incluir otros datos necesarios de la entrada
-        ...entradaData
-      };
-
-      console.log('Datos a enviar para quemar entrada:', datosIngreso);
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
-        credentials: 'include',
-        body: JSON.stringify(datosIngreso)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-
-      const responseText = await response.text();
-      
-      // Verificar si la sesión expiró
-      if (responseText.trim().startsWith('<!DOCTYPE html>')) {
-        setIsLoggedIn(false);
-        throw new Error('Sesión expirada al quemar entrada');
-      }
-
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.log('Respuesta no es JSON, probablemente éxito:', responseText);
-        result = { success: true, message: 'Entrada quemada correctamente' };
-      }
-
-      console.log('✅ Entrada quemada exitosamente:', result);
-      return { success: true, data: result };
-
-    } catch (error) {
-      console.error('❌ Error quemando entrada:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ==================== FUNCIÓN MODIFICADA mostrarResultadoUnificado ====================
-
   const mostrarResultadoUnificado = (datos) => {
     let mensaje = '';
     let color = '';
@@ -561,9 +483,6 @@ export default function App() {
     let dniFinal = datos.dni || 'Sin DNI';
 
     if (datos.origen === 'molinetes') {
-      // 🖥️ API MOLINETES - SIEMPRE FUNCIONA COMO MOLINETE
-      // El sistema Python ya maneja el quemado automáticamente
-      
       if (datos.mensaje && datos.mensaje.toLowerCase().includes('quemado')) {
         mensaje = '❌ ENTRADA YA UTILIZADA ❌';
         color = '#F44336';
@@ -587,7 +506,6 @@ export default function App() {
       horaFinal = new Date().toLocaleTimeString();
       
     } else {
-      // ☁️ API EVENTOS - PUEDE SER PERÍMETRO O MOLINETE
       const yaIngreso = datos.ingreso_evento === true || datos.ingreso_evento_hora;
       
       if (yaIngreso) {
@@ -599,22 +517,17 @@ export default function App() {
         
         if (validacionPerimetro.valido) {
           if (isPerimetro) {
-            // MODO PERÍMETRO - Solo validar
             mensaje = '✅ ACCESO AUTORIZADO ✅';
             color = '#4CAF50';
             estadoFinal = 'VÁLIDA - PERÍMETRO';
           } else {
-            // MODO MOLINETE - Validar y quemar
             mensaje = '✅ ENTRADA VÁLIDA - ACCESO PERMITIDO ✅';
             color = '#4CAF50';
             estadoFinal = 'VÁLIDA Y QUEMADA';
             
-            // Solo quemar si es offline (base local)
             if (datos.origen === 'offline') {
               marcarEntradaComoUsada(datos.dni);
-              console.log('🔥 Entrada quemada en base local');
             } else {
-              console.log('⚠️ API online no puede quemar entradas');
               estadoFinal = 'VÁLIDA - SIN QUEMAR';
             }
           }
@@ -656,20 +569,50 @@ export default function App() {
   // ==================== FUNCIONES DE CONSULTA ====================
   
   const procesarCodigo = (codigo) => {
-    if (!codigo || codigo.length < 3) {
-      Alert.alert('Error', 'Ingrese un código válido', [
-        { text: 'OK', onPress: () => resetearPantalla() }
-      ]);
-      return;
-    }
-    
-    // 🔄 DETERMINAR MODO OFFLINE
-    const modoOffline = baseLocal.length > 0 && !usarApiMolinetes;
-    
-    // 🔄 LLAMAR filtrarDNI CON EL MODO CORRECTO
-    const dni = filtrarDNI(codigo, modoOffline);
-    
-    consultarAPI(dni);
+    // Delay imperceptible para evitar procesamiento inmediato
+    setTimeout(() => {
+      // Validaciones básicas mejoradas
+      if (!codigo) {
+        return; // No hacer nada si está vacío
+      }
+      
+      // Limpiar espacios y caracteres extraños
+      const codigoLimpio = codigo.toString().trim();
+      
+      // Validar longitud mínima más estricta
+      if (codigoLimpio.length < 3) {
+        Alert.alert('Error', 'Ingrese un código válido (mínimo 3 caracteres)', [
+          { text: 'OK', onPress: () => resetearPantalla() }
+        ]);
+        return;
+      }
+      
+      // Validar que no sean solo espacios o caracteres especiales
+      if (!/[a-zA-Z0-9]/.test(codigoLimpio)) {
+        Alert.alert('Error', 'El código debe contener al menos un carácter alfanumérico', [
+          { text: 'OK', onPress: () => resetearPantalla() }
+        ]);
+        return;
+      }
+      
+      // Prevenir procesamiento múltiple si ya está cargando
+      if (isLoading) {
+        return;
+      }
+      
+      const modoOffline = baseLocal.length > 0 && !usarApiMolinetes;
+      const dni = filtrarDNI(codigoLimpio, modoOffline);
+      
+      // Validar DNI procesado
+      if (!dni || dni.length < 3) {
+        Alert.alert('Error', 'No se pudo procesar el código correctamente', [
+          { text: 'OK', onPress: () => resetearPantalla() }
+        ]);
+        return;
+      }
+      
+      consultarAPI(dni);
+    }, 50); // 50ms de delay imperceptible
   };
 
   const consultarApiMolinetes = async (codigo) => {
@@ -681,9 +624,8 @@ export default function App() {
     });
 
     try {
-      // 🔄 PARA API MOLINETES: CÓDIGO YA VIENE PROCESADO CORRECTAMENTE
       const resultado = await consultarCodigoMolinetes(
-        codigo, // <-- codigo YA está procesado correctamente
+        codigo,
         puerta,
         molinete,
         isPerimetro ? "0" : "1"
@@ -710,7 +652,6 @@ export default function App() {
         });
       }
     } catch (error) {
-      console.error('Error consultando molinetes:', error);
       mostrarResultadoUnificado({
         dni: codigo,
         origen: 'molinetes',
@@ -725,18 +666,12 @@ export default function App() {
   };
 
   const consultarLocal = (dni) => {
-    console.log(`Consultando DNI ${dni} en base local de ${baseLocal.length} entradas`);
-    
     const entrada = baseLocal.find(ticket => {
-      // Manejar diferentes versiones de compresión
       const dniTicket = ticket.beneficiario_identificador || ticket.dni || ticket.d;
       return dniTicket === dni;
     });
 
     if (entrada) {
-      console.log('Entrada encontrada en base local:', entrada);
-      
-      // Expandir datos comprimidos para mostrar
       const entradaExpandida = {
         beneficiario_identificador: entrada.dni || entrada.d || entrada.beneficiario_identificador,
         estadoingreso: entrada.est || entrada.e || entrada.estadoingreso,
@@ -753,7 +688,6 @@ export default function App() {
       });
       return true;
     } else {
-      console.log('DNI no encontrado en base local');
       setResultado({
         mensaje: '✖ DNI NO ENCONTRADO ✖',
         color: '#F44336',
@@ -769,7 +703,6 @@ export default function App() {
   };
 
   const consultarAPI = async (dni) => {
-    // CORREGIR: Validar eventoId solo si NO usa API molinetes
     if (!usarApiMolinetes && !eventoId) {
       Alert.alert('Error', 'Debe configurar el ID del evento primero');
       return;
@@ -780,22 +713,16 @@ export default function App() {
       return;
     }
 
-    // 🖥️ API MOLINETES
     if (usarApiMolinetes) {
       consultarApiMolinetes(dni);
       return;
     }
 
-    // ☁️ BASE LOCAL (offline)
     if (baseLocal.length > 0) {
-      console.log('Usando base local para consultar');
       consultarLocal(dni);
       return;
     }
 
-    // ☁️ API EVENTOS (online)
-    console.log('Consultando API online...');
-    
     if (!isLoggedIn && (username && password)) {
       const loginSuccess = await loginToAPI(username, password);
       if (!loginSuccess) {
@@ -812,7 +739,6 @@ export default function App() {
 
     try {
       const url = `${apiUrl}/getConsultaGeneralControlAccesoHabilitado?estadoingreso=2&eventoid=${eventoId}&documento=${dni}`;
-      console.log('Consultando URL:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -870,7 +796,6 @@ export default function App() {
         });
       }
     } catch (error) {
-      console.error('Error en consulta:', error);
       setResultado({
         mensaje: '✖ ERROR DE CONEXIÓN ✖',
         color: '#F44336',
@@ -898,8 +823,6 @@ export default function App() {
   
   const loginToAPI = async (user, pass) => {
     try {
-      console.log('Intentando login...');
-      
       const loginPageResponse = await fetch('https://gestion.estudiantesdelaplata.com/Account/Login', {
         method: 'GET',
         credentials: 'include'
@@ -927,18 +850,14 @@ export default function App() {
         redirect: 'manual'
       });
       
-      console.log('Login response status:', loginResponse.status);
-      
       if (loginResponse.status === 302 || loginResponse.status === 200) {
         setIsLoggedIn(true);
-        console.log('Login exitoso');
         return true;
       } else {
         throw new Error('Credenciales incorrectas');
       }
       
     } catch (error) {
-      console.error('Error en login:', error);
       Alert.alert('Error de Login', error.message);
       return false;
     }
@@ -949,7 +868,6 @@ export default function App() {
   const cargarBaseLocal = async () => {
     try {
       if (!eventoId) {
-        console.log('No hay eventoId configurado');
         return;
       }
       
@@ -959,14 +877,11 @@ export default function App() {
         setBaseLocal(parsedBase.entradas || []);
         setFechaDescarga(parsedBase.fechaDescarga || '');
         setTotalEntradas(parsedBase.entradas ? parsedBase.entradas.length : 0);
-        console.log(`Base local cargada: ${parsedBase.entradas ? parsedBase.entradas.length : 0} entradas`);
         return parsedBase.entradas || [];
       } else {
-        console.log('No hay base local guardada');
         return [];
       }
     } catch (error) {
-      console.error('Error cargando base local:', error);
       return [];
     }
   };
@@ -980,8 +895,8 @@ export default function App() {
             ...ticket,
             ingreso_evento: true,
             ingreso_evento_hora: new Date().toISOString(),
-            ing: true, // Para datos comprimidos
-            i: true   // Para datos ultra-comprimidos
+            ing: true,
+            i: true
           };
         }
         return ticket;
@@ -998,9 +913,8 @@ export default function App() {
       };
 
       await AsyncStorage.setItem(`baseLocal_${eventoId}`, JSON.stringify(baseData));
-      console.log(`Entrada marcada como usada para DNI: ${dni}`);
     } catch (error) {
-      console.error('Error marcando entrada como usada:', error);
+      // Error handling silenciado para no interrumpir el flujo
     }
   };
 
@@ -1027,13 +941,10 @@ export default function App() {
             setDownloadProgress(0);
 
             try {
-              // PASO 1: Limpiar caché antes de empezar
-              console.log('🧹 Limpiando caché antes de descarga...');
               await limpiarCacheAntesDeSave();
               setDownloadProgress(5);
 
               if (!isLoggedIn) {
-                console.log('Iniciando login...');
                 const loginSuccess = await loginToAPI(username, password);
                 if (!loginSuccess) {
                   setIsDownloading(false);
@@ -1041,11 +952,9 @@ export default function App() {
                 }
               }
 
-              console.log('Iniciando descarga de base completa...');
               setDownloadProgress(20);
               
               const url = `${apiUrl}/getConsultaGeneralControlAccesoHabilitado?estadoingreso=2&eventoid=${eventoId}`;
-              console.log('URL de descarga:', url);
               
               const response = await fetch(url, {
                 method: 'GET',
@@ -1075,11 +984,8 @@ export default function App() {
               try {
                 data = JSON.parse(responseText);
               } catch (parseError) {
-                console.error('Error parsing JSON:', parseError);
                 throw new Error('La respuesta del servidor no es JSON válido');
               }
-
-              console.log(`Datos recibidos: ${Array.isArray(data) ? data.length : 'No es array'}`);
 
               if (!data || !Array.isArray(data) || data.length === 0) {
                 throw new Error('No se recibieron datos válidos del servidor');
@@ -1087,7 +993,6 @@ export default function App() {
 
               setDownloadProgress(85);
 
-              // PASO 2: Intentar guardar con estrategias múltiples
               const baseData = await guardarConEstrategias(data);
 
               setDownloadProgress(100);
@@ -1102,10 +1007,7 @@ export default function App() {
                 `📱 Ahora puede usar la app sin conexión.`
               );
 
-              console.log(`Base offline guardada exitosamente: ${baseData.entradas.length} entradas`);
-
             } catch (error) {
-              console.error('❌ Error descargando base:', error);
               Alert.alert(
                 'Error de Descarga', 
                 `No se pudo descargar la base: ${error.message}\n\n` +
@@ -1317,6 +1219,8 @@ export default function App() {
     );
   };
 
+  
+
   // ==================== FUNCIONES DE CONFIGURACIÓN ====================
   
   const cargarConfiguracion = async () => {
@@ -1343,13 +1247,12 @@ export default function App() {
       
       await cargarBaseLocal();
     } catch (error) {
-      console.error('Error cargando configuración:', error);
+      // Error handling silenciado
     }
   };
 
   const guardarConfiguracion = async () => {
     try {
-      // Si usa API molinetes, forzar modo molinete
       const modoPerimetro = usarApiMolinetes ? false : isPerimetro;
       
       const config = {
@@ -1370,7 +1273,6 @@ export default function App() {
       
       await AsyncStorage.setItem('appConfig', JSON.stringify(config));
       
-      // Actualizar el estado local también
       if (usarApiMolinetes) {
         setIsPerimetro(false);
       }
@@ -1384,7 +1286,6 @@ export default function App() {
       
       Alert.alert('Éxito', 'Configuración guardada correctamente');
     } catch (error) {
-      console.error('Error guardando configuración:', error);
       Alert.alert('Error', 'No se pudo guardar la configuración');
     }
   };
@@ -1394,23 +1295,19 @@ export default function App() {
   const getCameraPermissions = async () => {
     try {
       if (!isCameraAvailable || !Camera) {
-        console.log('expo-camera no disponible en esta plataforma');
         setHasPermission(false);
         return;
       }
       
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
-      console.log('Camera permission status:', status);
     } catch (error) {
-      console.log('Error requesting camera permissions:', error);
       setHasPermission(false);
     }
   };
 
   const handleBarcodeScanned = (scanningResult) => {
     if (scanningResult.data) {
-      console.log('Código escaneado:', scanningResult.data);
       setShowScanner(false);
       procesarCodigo(scanningResult.data);
     }
@@ -1428,54 +1325,95 @@ export default function App() {
 
   // ==================== COMPONENTES DE RENDERIZADO ====================
   
-  const HeaderButton = ({ onPress, iconName, label }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 30,
-        width: 60,
-        height: 60,
-        justifyContent: 'center',
+  const HeaderButton = ({ onPress, iconName, label }) => {
+    const colors = getAppColors();
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={{
+          backgroundColor: colors.buttonBg,
+          borderRadius: 30,
+          width: 60,
+          height: 60,
+          justifyContent: 'center',
+          alignItems: 'center',
+          margin: 10,
+        }}
+        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+      >
+        <Ionicons name={iconName} size={24} color={colors.headerText} />
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHeader = () => {
+    const colors = getAppColors();
+    
+    return (
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        margin: 10,
-      }}
-      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-    >
-      <Ionicons name={iconName} size={24} color="white" />
-    </TouchableOpacity>
-  );
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: colors.headerBg,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      }}>
+        
+        <HeaderButton
+          onPress={handleAdminPress}
+          iconName="shield-checkmark"
+          label="Admin"
+        />
 
-  const renderHeader = () => (
-    <View style={{
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      backgroundColor: '#F44336',
-      elevation: 4,
-    }}>
-      
-      <HeaderButton
-        onPress={handleAdminPress}
-        iconName="shield-checkmark"
-        label="Admin"
-      />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ 
+            color: colors.headerText, 
+            fontSize: 18, 
+            fontWeight: 'bold' 
+          }}>
+            UNO - Control de Acceso
+          </Text>
+          <Text style={{ 
+            color: colors.headerText, 
+            fontSize: 12, 
+            opacity: 0.8 
+          }}>
+            {usarApiMolinetes ? 'MOLINETES' : 'EVENTOS'}
+          </Text>
+        </View>
 
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
-          UNO - Control de Acceso
+        <HeaderButton
+          onPress={handleConfigPress}
+          iconName="settings"
+          label="Config"
+        />
+      </View>
+    );
+  };
+
+  const renderWatermark = () => {
+    const colors = getAppColors();
+    
+    return (
+      <View style={[styles.watermark, { 
+        backgroundColor: colors.primary === '#FFFFFF' 
+          ? 'rgba(0,0,0,0.05)' 
+          : 'rgba(255,255,255,0.1)' 
+      }]}>
+        <Text style={[styles.watermarkText, { 
+          color: colors.watermarkText,
+          fontWeight: 'bold'
+        }]}>
+          {usarApiMolinetes ? 'MOLINETES' : (isPerimetro ? 'PERÍMETRO' : 'MOLINETE')}
         </Text>
       </View>
-
-      <HeaderButton
-        onPress={handleConfigPress}
-        iconName="settings"
-        label="Config"
-      />
-    </View>
-  );
+    );
+  };
 
   const renderProgressBar = () => {
     if (!isDownloading) return null;
@@ -1532,8 +1470,8 @@ export default function App() {
       <View style={styles.baseLocalContainerCompact}>
         <View style={styles.baseLocalHeaderCompact}>
           <Text style={styles.baseLocalTitleCompact}>
-            {PERIMETROS[perimetroSeleccionado]?.icono} {PERIMETROS[perimetroSeleccionado]?.nombre}
-            {modoVisitante ? ' 🚌' : ' 🏠'}
+            {!usarApiMolinetes && PERIMETROS[perimetroSeleccionado]?.icono} {!usarApiMolinetes && PERIMETROS[perimetroSeleccionado]?.nombre}
+            {!usarApiMolinetes && (modoVisitante ? ' 🚌' : ' 🏠')}
           </Text>
         </View>
         <Text style={styles.baseLocalInfoCompact}>
@@ -1635,184 +1573,6 @@ export default function App() {
     </Modal>
   );
 
-  const renderConfiguracionInicial = () => (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#F44336" />
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>UNO - CONTROL DE ACCESO</Text>
-        <Text style={styles.headerSubtitle}>Configuración</Text>
-      </View>
-
-      <KeyboardAvoidingView 
-        style={styles.configContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView contentContainerStyle={styles.configContent}>
-          
-          <View style={styles.logoContainer}>
-            <Ionicons name="settings" size={80} color="#F44336" />
-            <Text style={styles.welcomeTitle}>Bienvenido</Text>
-            <Text style={styles.welcomeSubtitle}>Configure la aplicación para comenzar</Text>
-          </View>
-
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>Sistema de consulta</Text>
-            <View style={styles.modeButtons}>
-              <TouchableOpacity
-                style={[styles.modeButton, !usarApiMolinetes && styles.modeButtonActive]}
-                onPress={() => setUsarApiMolinetes(false)}
-              >
-                <Text style={[styles.modeButtonText, !usarApiMolinetes && styles.modeButtonTextActive]}>
-                  API EVENTOS
-                </Text>
-                <Text style={styles.modeButtonSubtext}>Perímetro/Molinete offline</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modeButton, usarApiMolinetes && styles.modeButtonActive]}
-                onPress={() => setUsarApiMolinetes(true)}
-              >
-                <Text style={[styles.modeButtonText, usarApiMolinetes && styles.modeButtonTextActive]}>
-                  API MOLINETES
-                </Text>
-                <Text style={styles.modeButtonSubtext}>Molinete automático</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* SOLO MOSTRAR MODO PERÍMETRO/MOLINETE SI NO USA API MOLINETES */}
-          {!usarApiMolinetes && (
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchLabel}>Modo de operación</Text>
-              <View style={styles.modeButtons}>
-                <TouchableOpacity
-                  style={[styles.modeButton, isPerimetro && styles.modeButtonActive]}
-                  onPress={() => setIsPerimetro(true)}
-                >
-                  <Text style={[styles.modeButtonText, isPerimetro && styles.modeButtonTextActive]}>
-                    PERÍMETRO
-                  </Text>
-                  <Text style={styles.modeButtonSubtext}>Solo validación</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.modeButton, !isPerimetro && styles.modeButtonActive]}
-                  onPress={() => setIsPerimetro(false)}
-                >
-                  <Text style={[styles.modeButtonText, !isPerimetro && styles.modeButtonTextActive]}>
-                    MOLINETE
-                  </Text>
-                  <Text style={styles.modeButtonSubtext}>Controla ingreso</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {!usarApiMolinetes && (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>ID del Evento</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={eventoId}
-                  onChangeText={setEventoId}
-                  placeholder="Ej: 386"
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Usuario (para API)</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder="Usuario del sistema"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Contraseña (para API)</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Contraseña del sistema"
-                  secureTextEntry={true}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>URL de la API</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={apiUrl}
-                  onChangeText={setApiUrl}
-                  placeholder="URL base de la API"
-                />
-              </View>
-            </>
-          )}
-
-          {usarApiMolinetes && (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>URL API Molinetes</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={molinetesApiUrl}
-                  onChangeText={setMolinetesApiUrl}
-                  placeholder="http://10.0.10.30:8000"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Token de Autenticación</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={molinetesToken}
-                  onChangeText={setMolinetesToken}
-                  placeholder="Token de autenticación"
-                />
-              </View>
-            </>
-          )}
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Puerta</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={puerta}
-              onChangeText={setPuerta}
-              placeholder="0;1;2;3;4;5;6;7;8;9;10;12;13;14;15;17;28;57;90;91;100;115;800;801;999"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Molinete</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={molinete}
-              onChangeText={setMolinete}
-              placeholder="1"
-              keyboardType="numeric"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.saveButton, (!eventoId && !usarApiMolinetes) && styles.saveButtonDisabled]}
-            onPress={guardarConfiguracion}
-            disabled={!eventoId && !usarApiMolinetes}
-          >
-            <Text style={styles.saveButtonText}>INICIAR APLICACIÓN</Text>
-          </TouchableOpacity>
-
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
-
   const renderModalConfiguracion = () => (
     <Modal visible={showConfig} animationType="slide" transparent={true}>
       <View style={styles.modalOverlay}>
@@ -1820,29 +1580,32 @@ export default function App() {
           <ScrollView>
             <Text style={styles.modalTitle}>⚙️ Configuración</Text>
             
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchLabel}>Perímetro de Control</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.perimetroScroll}>
-                {Object.entries(PERIMETROS).map(([key, perimetro]) => (
-                  <TouchableOpacity
-                    key={key}
-                    style={[
-                      styles.perimetroButton,
-                      perimetroSeleccionado === key && styles.perimetroButtonActive
-                    ]}
-                    onPress={() => setPerimetroSeleccionado(key)}
-                  >
-                    <Text style={styles.perimetroEmoji}>{perimetro.icono}</Text>
-                    <Text style={[
-                      styles.perimetroText,
-                      perimetroSeleccionado === key && styles.perimetroTextActive
-                    ]}>
-                      {perimetro.nombre}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+            {/* PERÍMETRO - Solo visible con API EVENTOS */}
+            {!usarApiMolinetes && (
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchLabel}>Perímetro de Control</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.perimetroScroll}>
+                  {Object.entries(PERIMETROS).map(([key, perimetro]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.perimetroButton,
+                        perimetroSeleccionado === key && styles.perimetroButtonActive
+                      ]}
+                      onPress={() => setPerimetroSeleccionado(key)}
+                    >
+                      <Text style={styles.perimetroEmoji}>{perimetro.icono}</Text>
+                      <Text style={[
+                        styles.perimetroText,
+                        perimetroSeleccionado === key && styles.perimetroTextActive
+                      ]}>
+                        {perimetro.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             <View style={styles.switchContainer}>
               <Text style={styles.switchLabel}>Sistema de consulta</Text>
@@ -1854,6 +1617,7 @@ export default function App() {
                   <Text style={[styles.modeButtonText, !usarApiMolinetes && styles.modeButtonTextActive]}>
                     API EVENTOS
                   </Text>
+                  <Text style={styles.modeButtonSubtext}>Perímetro/Molinete offline</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -1863,9 +1627,38 @@ export default function App() {
                   <Text style={[styles.modeButtonText, usarApiMolinetes && styles.modeButtonTextActive]}>
                     API MOLINETES
                   </Text>
+                  <Text style={styles.modeButtonSubtext}>Molinete automático</Text>
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* MODO OPERACIÓN - Solo visible con API EVENTOS */}
+            {!usarApiMolinetes && (
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchLabel}>Modo de operación</Text>
+                <View style={styles.modeButtons}>
+                  <TouchableOpacity
+                    style={[styles.modeButton, isPerimetro && styles.modeButtonActive]}
+                    onPress={() => setIsPerimetro(true)}
+                  >
+                    <Text style={[styles.modeButtonText, isPerimetro && styles.modeButtonTextActive]}>
+                      PERÍMETRO
+                    </Text>
+                    <Text style={styles.modeButtonSubtext}>Solo validación</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.modeButton, !isPerimetro && styles.modeButtonActive]}
+                    onPress={() => setIsPerimetro(false)}
+                  >
+                    <Text style={[styles.modeButtonText, !isPerimetro && styles.modeButtonTextActive]}>
+                      MOLINETE
+                    </Text>
+                    <Text style={styles.modeButtonSubtext}>Controla ingreso</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
             {!usarApiMolinetes && (
               <>
@@ -1982,6 +1775,204 @@ export default function App() {
     </Modal>
   );
 
+  const renderConfiguracionInicial = () => {
+    const colors = getAppColors();
+    
+    return (
+      <SafeAreaView style={[styles.container, { 
+        backgroundColor: colors.primary 
+      }]}>
+        <StatusBar 
+          barStyle={usarApiMolinetes ? "light-content" : "dark-content"} 
+          backgroundColor={colors.statusBar} 
+        />
+        
+        <View style={[styles.header, { 
+          backgroundColor: colors.headerBg 
+        }]}>
+          <Text style={[styles.headerTitle, { 
+            color: colors.headerText 
+          }]}>
+            UNO - CONTROL DE ACCESO
+          </Text>
+          <Text style={[styles.headerSubtitle, { 
+            color: colors.headerText,
+            opacity: 0.8 
+          }]}>
+            Configuración
+          </Text>
+        </View>
+
+        <KeyboardAvoidingView 
+          style={styles.configContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView contentContainerStyle={styles.configContent}>
+            
+            <View style={styles.logoContainer}>
+              <Ionicons name="settings" size={80} color={usarApiMolinetes ? "#FFFFFF" : "#F44336"} />
+              <Text style={styles.welcomeTitle}>Bienvenido</Text>
+              <Text style={styles.welcomeSubtitle}>Configure la aplicación para comenzar</Text>
+            </View>
+
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>Sistema de consulta</Text>
+              <View style={styles.modeButtons}>
+                <TouchableOpacity
+                  style={[styles.modeButton, !usarApiMolinetes && styles.modeButtonActive]}
+                  onPress={() => setUsarApiMolinetes(false)}
+                >
+                  <Text style={[styles.modeButtonText, !usarApiMolinetes && styles.modeButtonTextActive]}>
+                    API EVENTOS
+                  </Text>
+                  <Text style={styles.modeButtonSubtext}>Perímetro/Molinete offline</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.modeButton, usarApiMolinetes && styles.modeButtonActive]}
+                  onPress={() => setUsarApiMolinetes(true)}
+                >
+                  <Text style={[styles.modeButtonText, usarApiMolinetes && styles.modeButtonTextActive]}>
+                    API MOLINETES
+                  </Text>
+                  <Text style={styles.modeButtonSubtext}>Molinete automático</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* MODO OPERACIÓN - Solo visible con API EVENTOS */}
+            {!usarApiMolinetes && (
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchLabel}>Modo de operación</Text>
+                <View style={styles.modeButtons}>
+                  <TouchableOpacity
+                    style={[styles.modeButton, isPerimetro && styles.modeButtonActive]}
+                    onPress={() => setIsPerimetro(true)}
+                  >
+                    <Text style={[styles.modeButtonText, isPerimetro && styles.modeButtonTextActive]}>
+                      PERÍMETRO
+                    </Text>
+                    <Text style={styles.modeButtonSubtext}>Solo validación</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.modeButton, !isPerimetro && styles.modeButtonActive]}
+                    onPress={() => setIsPerimetro(false)}
+                  >
+                    <Text style={[styles.modeButtonText, !isPerimetro && styles.modeButtonTextActive]}>
+                      MOLINETE
+                    </Text>
+                    <Text style={styles.modeButtonSubtext}>Controla ingreso</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {!usarApiMolinetes && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>ID del Evento</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={eventoId}
+                    onChangeText={setEventoId}
+                    placeholder="Ej: 386"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Usuario (para API)</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={username}
+                    onChangeText={setUsername}
+                    placeholder="Usuario del sistema"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Contraseña (para API)</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Contraseña del sistema"
+                    secureTextEntry={true}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>URL de la API</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={apiUrl}
+                    onChangeText={setApiUrl}
+                    placeholder="URL base de la API"
+                  />
+                </View>
+              </>
+            )}
+
+            {usarApiMolinetes && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>URL API Molinetes</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={molinetesApiUrl}
+                    onChangeText={setMolinetesApiUrl}
+                    placeholder="http://10.0.10.30:8000"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Token de Autenticación</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={molinetesToken}
+                    onChangeText={setMolinetesToken}
+                    placeholder="Token de autenticación"
+                  />
+                </View>
+              </>
+            )}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Puerta</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={puerta}
+                onChangeText={setPuerta}
+                placeholder="0;1;2;3;4;5;6;7;8;9;10;12;13;14;15;17;28;57;90;91;100;115;800;801;999"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Molinete</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={molinete}
+                onChangeText={setMolinete}
+                placeholder="1"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.saveButton, (!eventoId && !usarApiMolinetes) && styles.saveButtonDisabled]}
+              onPress={guardarConfiguracion}
+              disabled={!eventoId && !usarApiMolinetes}
+            >
+              <Text style={styles.saveButtonText}>INICIAR APLICACIÓN</Text>
+            </TouchableOpacity>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  };
+
   // ==================== EFFECTS ====================
   
   useEffect(() => {
@@ -1996,34 +1987,51 @@ export default function App() {
     }
   }, [showScanner]);
 
+  // useEffect para mantener el input siempre enfocado
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!showConfig && !showScanner && isConfigured && inputRef.current) {
+        // Solo hacer focus si no hay otro elemento enfocado
+        if (!inputRef.current.isFocused()) {
+          inputRef.current.focus();
+        }
+      }
+    }, 1000); // Verificar cada segundo
+
+    return () => clearInterval(interval);
+  }, [showConfig, showScanner, isConfigured]);
+
   // ==================== COMPONENTE PRINCIPAL ====================
   
   if (!isConfigured) {
     return renderConfiguracionInicial();
   }
 
+  const colors = getAppColors();
+
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#F44336" />
+      <SafeAreaView style={[styles.container, { 
+        backgroundColor: colors.primary 
+      }]}>
+        <StatusBar 
+          barStyle={usarApiMolinetes ? "light-content" : "dark-content"} 
+          backgroundColor={colors.statusBar} 
+        />
         
-        {/* Header */}
         {renderHeader()}
 
-        {/* Marca de agua */}
-        <View style={styles.watermark}>
-          <Text style={styles.watermarkText}>
-            {isPerimetro ? 'PERIMETRO' : 'MOLINETE'}
-          </Text>
-        </View>
+        {renderWatermark()}
 
-        {/* Contenido principal */}
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          style={[styles.content, { 
+            backgroundColor: colors.primary 
+          }]} 
+          keyboardShouldPersistTaps="handled"
+        >
           
-          {/* Estado de la base local */}
-          {renderBaseLocalInfo()}
+          
 
-          {/* Input de código */}
           <TouchableOpacity 
             style={{ flex: 1, minHeight: 200 }}
             activeOpacity={1} 
@@ -2037,24 +2045,34 @@ export default function App() {
               >
                 <Ionicons name="qr-code" size={30} color="#666" />
               </TouchableOpacity>
+              
+              {/* AQUÍ ESTÁ EL TextInput QUE FALTABA */}
               <TextInput
                 ref={inputRef}
                 style={styles.textInput}
                 placeholder="DNI o QR"
                 value={codigoInput}
                 onChangeText={setCodigoInput}
-                onSubmitEditing={() => procesarCodigo(codigoInput)}
+                onSubmitEditing={(event) => {
+                  const valor = event.nativeEvent.text || codigoInput;
+                  if (valor && valor.trim().length >= 3) {
+                    procesarCodigo(valor);
+                  }
+                }}
                 autoCapitalize="none"
                 keyboardType="numeric"
                 returnKeyType="search"
                 autoFocus={true}
                 blurOnSubmit={false}
+                selectTextOnFocus={true}
+                clearButtonMode="while-editing"
                 onBlur={() => {
                   if (!showConfig && !showScanner && isConfigured) {
                     focusInput();
                   }
                 }}
               />
+              
               <TouchableOpacity 
                 style={styles.searchButton}
                 onPress={() => procesarCodigo(codigoInput)}
@@ -2064,10 +2082,8 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Resultado principal */}
             {renderResultadoPrincipal()}
 
-            {/* Indicador de carga */}
             {isLoading && (
               <View style={styles.loadingContainer}>
                 <Text style={styles.loadingText}>Consultando...</Text>
@@ -2076,7 +2092,6 @@ export default function App() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* Versión clickeable */}
         <TouchableOpacity 
           style={styles.versionContainer}
           onPress={mostrarInfoVersion}
@@ -2087,7 +2102,6 @@ export default function App() {
           </Text>
         </TouchableOpacity>
 
-        {/* Modales */}
         {renderModalConfiguracion()}
         {renderModalScanner()}
       </SafeAreaView>
