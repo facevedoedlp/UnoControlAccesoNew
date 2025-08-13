@@ -2,38 +2,12 @@
   "expo": {
     "name": "UNO - Control de Acceso",
     "slug": "uno-control-acceso-new",
-    "version": "0.8.0",
+    "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/favicon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/favicon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F44336"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.tuempresa.unocontrolacceso",
-      "icon": "./assets/favicon.png",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "icon": "./assets/favicon.png",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/favicon.png",
-        "backgroundColor": "#F44336"
-      },
-      "package": "com.tuempresa.unocontrolacceso",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
-    },
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -48,6 +22,19 @@
     "extra": {
       "eas": {
         "projectId": "ae7bf090-c8a5-4331-b269-57aa0a323d71"
+      }
+    },
+    "android": {
+      "package": "com.fedeaacevedoo.unocontrolaccesonew",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.fedeaacevedoo.unocontrolaccesonew",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     }
   }

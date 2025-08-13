@@ -24,7 +24,7 @@ import {
   obtenerDetalleCodigo, 
   probarConexionMolinetes 
 } from './molinetes/api.js';
-
+import { getAppVersion } from './src/utils/version.js';
 // ==================== CONFIGURACIÓN DE CÁMARA ====================
 let Camera, CameraView;
 let isCameraAvailable = false;
@@ -185,28 +185,7 @@ const filtrarDNI = (barcode, modoOffline = false) => {
   }
 };
 
-const getAppVersion = () => {
-  try {
-    const version = Constants.expoConfig?.version || Constants.manifest?.version || '0.8.0';
-    const buildNumber = Platform.OS === 'ios'
-      ? Constants.expoConfig?.ios?.buildNumber || Constants.manifest?.ios?.buildNumber || '1'
-      : Constants.expoConfig?.android?.versionCode || Constants.manifest?.android?.versionCode || 8;
 
-    return {
-      version: version,
-      buildNumber: buildNumber.toString(),
-      fullVersion: `${version} (${buildNumber})`,
-      platform: Platform.OS.toUpperCase()
-    };
-  } catch (error) {
-    return {
-      version: '0.8.0',
-      buildNumber: '1',
-      fullVersion: '0.8.0 (5)',
-      platform: 'UNKNOWN'
-    };
-  }
-};
 
 export default function App() {
   // ==================== ESTADOS PRINCIPALES ====================
@@ -255,9 +234,9 @@ export default function App() {
   const [password, setPassword] = useState('');
 
   const [showMenuHamburguesa, setShowMenuHamburguesa] = useState(false);
-const [showPasswordModal, setShowPasswordModal] = useState(false);
-const [passwordInput, setPasswordInput] = useState('');
-const [actionAfterAuth, setActionAfterAuth] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [actionAfterAuth, setActionAfterAuth] = useState('');
 
   // Referencias
   const inputRef = useRef(null);
@@ -1140,7 +1119,7 @@ const [actionAfterAuth, setActionAfterAuth] = useState('');
     Alert.alert(
       '📱 Información de la Aplicación',
       `UNO - Control de Acceso\n\n` +
-      `📦 Versión: ${versionInfo.version}\n` +
+      `📦 Versión: 0.1.0\n` +
       `🔨 Build: ${versionInfo.buildNumber}\n` +
       `📱 Plataforma: ${versionInfo.platform}\n` +
       `📅 Fecha: ${buildDate}\n` +
@@ -1218,8 +1197,6 @@ const [actionAfterAuth, setActionAfterAuth] = useState('');
       opciones
     );
   };
-
-  
 
   // ==================== FUNCIONES DE CONFIGURACIÓN ====================
   
@@ -1385,6 +1362,17 @@ const [actionAfterAuth, setActionAfterAuth] = useState('');
           }}>
             {usarApiMolinetes ? 'MOLINETES' : 'EVENTOS'}
           </Text>
+          {/* NUEVA LÍNEA: Mostrar puerta y molinete cuando está en modo molinete */}
+          {usarApiMolinetes && (
+            <Text style={{ 
+              color: colors.headerText, 
+              fontSize: 11, 
+              opacity: 0.7,
+              fontWeight: 'bold'
+            }}>
+              P:{puerta} | M:{molinete}
+            </Text>
+          )}
         </View>
 
         <HeaderButton
@@ -1461,7 +1449,7 @@ const [actionAfterAuth, setActionAfterAuth] = useState('');
 
   const renderBaseLocalInfo = () => {
     const tipoConexion = usarApiMolinetes ? 
-      `🖥️ MOLINETES - ${molinetesApiUrl}` :
+      `🖥️ MOLINETES` :
       baseLocal.length > 0 ? 
         `☁️ OFFLINE - ${totalEntradas.toLocaleString()} entradas (${fechaDescarga})` :
         '⚠️ Sin base offline - Toque Admin > Actualizar Base';
@@ -2030,7 +2018,7 @@ const [actionAfterAuth, setActionAfterAuth] = useState('');
           keyboardShouldPersistTaps="handled"
         >
           
-          
+          {/* Removido renderBaseLocalInfo() para liberar espacio */}
 
           <TouchableOpacity 
             style={{ flex: 1, minHeight: 200 }}
@@ -2092,13 +2080,30 @@ const [actionAfterAuth, setActionAfterAuth] = useState('');
           </TouchableOpacity>
         </ScrollView>
 
+        {/* VERSIÓN VISIBLE EN PANTALLA PRINCIPAL */}
         <TouchableOpacity 
-          style={styles.versionContainer}
+          style={{
+            position: 'absolute',
+            bottom: 100,
+            alignSelf: 'center',
+            backgroundColor: usarApiMolinetes ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+            paddingHorizontal: 15,
+            paddingVertical: 8,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: usarApiMolinetes ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)',
+            zIndex: 1000,
+          }}
           onPress={mostrarInfoVersion}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
-          <Text style={styles.versionText}>
-            v{getAppVersion().version} ({getAppVersion().buildNumber})
+          <Text style={{
+            fontSize: 14,
+            color: usarApiMolinetes ? '#FFFFFF' : '#666666',
+            fontWeight: '600',
+            opacity: 0.9
+          }}>
+            v0.1.0
           </Text>
         </TouchableOpacity>
 

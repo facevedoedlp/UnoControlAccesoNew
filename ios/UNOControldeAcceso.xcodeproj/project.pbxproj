@@ -7,11 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B0C361A52583B8C7A703F1C /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14D43B59C379488E0BF9283 /* ExpoModulesProvider.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		2EA105B9D83A53E27CDDF4A2 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C9081D8AECF17058DDCBB6 /* ExpoModulesProvider.swift */; };
+		261D8D392E75C5FE3F63A0A7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E7A9EC7513778A7DB860530C /* PrivacyInfo.xcprivacy */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		3F746B176F5E073AACEF2059 /* libPods-UNOControldeAcceso.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D8AFC0E828A2898133CAA702 /* libPods-UNOControldeAcceso.a */; };
-		90EA1A1BDF002F74C31217F1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B44EEEE8563CEE921D8EC97B /* PrivacyInfo.xcprivacy */; };
+		8EDAC0CFF27FDF6E2A240790 /* libPods-UNOControldeAcceso.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1580B0EE98C4F58AA0FB9D64 /* libPods-UNOControldeAcceso.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
@@ -20,13 +20,13 @@
 		13B07F961A680F5B00A75B9A /* UNOControldeAcceso.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UNOControldeAcceso.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = UNOControldeAcceso/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = UNOControldeAcceso/Info.plist; sourceTree = "<group>"; };
-		318C27095644567E3EE047F8 /* Pods-UNOControldeAcceso.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-UNOControldeAcceso.release.xcconfig"; path = "Target Support Files/Pods-UNOControldeAcceso/Pods-UNOControldeAcceso.release.xcconfig"; sourceTree = "<group>"; };
-		63C9081D8AECF17058DDCBB6 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-UNOControldeAcceso/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		7E5FD4A9F01046BFD153EEEC /* Pods-UNOControldeAcceso.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-UNOControldeAcceso.debug.xcconfig"; path = "Target Support Files/Pods-UNOControldeAcceso/Pods-UNOControldeAcceso.debug.xcconfig"; sourceTree = "<group>"; };
+		1580B0EE98C4F58AA0FB9D64 /* libPods-UNOControldeAcceso.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-UNOControldeAcceso.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A14D43B59C379488E0BF9283 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-UNOControldeAcceso/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = UNOControldeAcceso/SplashScreen.storyboard; sourceTree = "<group>"; };
-		B44EEEE8563CEE921D8EC97B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = UNOControldeAcceso/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B51DA8923302308FB0E5BEDF /* Pods-UNOControldeAcceso.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-UNOControldeAcceso.release.xcconfig"; path = "Target Support Files/Pods-UNOControldeAcceso/Pods-UNOControldeAcceso.release.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		D8AFC0E828A2898133CAA702 /* libPods-UNOControldeAcceso.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-UNOControldeAcceso.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DAD4C5C30408FE4EC5A2265C /* Pods-UNOControldeAcceso.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-UNOControldeAcceso.debug.xcconfig"; path = "Target Support Files/Pods-UNOControldeAcceso/Pods-UNOControldeAcceso.debug.xcconfig"; sourceTree = "<group>"; };
+		E7A9EC7513778A7DB860530C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = UNOControldeAcceso/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = UNOControldeAcceso/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* UNOControldeAcceso-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "UNOControldeAcceso-Bridging-Header.h"; path = "UNOControldeAcceso/UNOControldeAcceso-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3F746B176F5E073AACEF2059 /* libPods-UNOControldeAcceso.a in Frameworks */,
+				8EDAC0CFF27FDF6E2A240790 /* libPods-UNOControldeAcceso.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,15 +53,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				B44EEEE8563CEE921D8EC97B /* PrivacyInfo.xcprivacy */,
-			);
-			name = UNOControldeAcceso;
-			sourceTree = "<group>";
-		};
-		2399CAB27846AF3FE76D371A /* UNOControldeAcceso */ = {
-			isa = PBXGroup;
-			children = (
-				63C9081D8AECF17058DDCBB6 /* ExpoModulesProvider.swift */,
+				E7A9EC7513778A7DB860530C /* PrivacyInfo.xcprivacy */,
 			);
 			name = UNOControldeAcceso;
 			sourceTree = "<group>";
@@ -70,19 +62,17 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				D8AFC0E828A2898133CAA702 /* libPods-UNOControldeAcceso.a */,
+				1580B0EE98C4F58AA0FB9D64 /* libPods-UNOControldeAcceso.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		7323B03DF051DB8FC80D2197 /* Pods */ = {
+		518B41ADEDD43012C0C6DC26 /* UNOControldeAcceso */ = {
 			isa = PBXGroup;
 			children = (
-				7E5FD4A9F01046BFD153EEEC /* Pods-UNOControldeAcceso.debug.xcconfig */,
-				318C27095644567E3EE047F8 /* Pods-UNOControldeAcceso.release.xcconfig */,
+				A14D43B59C379488E0BF9283 /* ExpoModulesProvider.swift */,
 			);
-			name = Pods;
-			path = Pods;
+			name = UNOControldeAcceso;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -99,8 +89,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				7323B03DF051DB8FC80D2197 /* Pods */,
-				DD8F3ED9C7161D41C4F8D011 /* ExpoModulesProviders */,
+				94E28DF280899418A13457D7 /* Pods */,
+				B0D93CCEFA8C31C7897E3481 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -115,6 +105,24 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		94E28DF280899418A13457D7 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				DAD4C5C30408FE4EC5A2265C /* Pods-UNOControldeAcceso.debug.xcconfig */,
+				B51DA8923302308FB0E5BEDF /* Pods-UNOControldeAcceso.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		B0D93CCEFA8C31C7897E3481 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				518B41ADEDD43012C0C6DC26 /* UNOControldeAcceso */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
@@ -122,14 +130,6 @@
 			);
 			name = Supporting;
 			path = UNOControldeAcceso/Supporting;
-			sourceTree = "<group>";
-		};
-		DD8F3ED9C7161D41C4F8D011 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				2399CAB27846AF3FE76D371A /* UNOControldeAcceso */,
-			);
-			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -140,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "UNOControldeAcceso" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				F0244813BFEC807A5C6C856A /* [Expo] Configure project */,
+				65ED8D08DEC79D0B9245D583 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				47A2C97C7015CE594DE51163 /* [CP] Embed Pods Frameworks */,
+				1CA2EDF860925F3B0A3F6EE6 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				90EA1A1BDF002F74C31217F1 /* PrivacyInfo.xcprivacy in Resources */,
+				261D8D392E75C5FE3F63A0A7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -240,7 +240,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		47A2C97C7015CE594DE51163 /* [CP] Embed Pods Frameworks */ = {
+		1CA2EDF860925F3B0A3F6EE6 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -257,6 +257,25 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-UNOControldeAcceso/Pods-UNOControldeAcceso-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		65ED8D08DEC79D0B9245D583 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-UNOControldeAcceso/expo-configure-project.sh\"\n";
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -296,25 +315,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-UNOControldeAcceso/Pods-UNOControldeAcceso-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		F0244813BFEC807A5C6C856A /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-UNOControldeAcceso/expo-configure-project.sh\"\n";
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -323,7 +323,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				2EA105B9D83A53E27CDDF4A2 /* ExpoModulesProvider.swift in Sources */,
+				0B0C361A52583B8C7A703F1C /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -332,7 +332,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7E5FD4A9F01046BFD153EEEC /* Pods-UNOControldeAcceso.debug.xcconfig */;
+			baseConfigurationReference = DAD4C5C30408FE4EC5A2265C /* Pods-UNOControldeAcceso.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -356,19 +356,19 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.tuempresa.unocontrolacceso;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fedeaacevedoo.unocontrolaccesonew;
 				PRODUCT_NAME = UNOControldeAcceso;
 				SWIFT_OBJC_BRIDGING_HEADER = "UNOControldeAcceso/UNOControldeAcceso-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 318C27095644567E3EE047F8 /* Pods-UNOControldeAcceso.release.xcconfig */;
+			baseConfigurationReference = B51DA8923302308FB0E5BEDF /* Pods-UNOControldeAcceso.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -387,11 +387,11 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.tuempresa.unocontrolacceso;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fedeaacevedoo.unocontrolaccesonew;
 				PRODUCT_NAME = UNOControldeAcceso;
 				SWIFT_OBJC_BRIDGING_HEADER = "UNOControldeAcceso/UNOControldeAcceso-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;

@@ -1,16 +1,16 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Carpetas nativas (si usas prebuild)
+/android
+/ios
 
-# dependencies
+# Dependencies
 node_modules/
 
 # Expo
 .expo/
 dist/
 web-build/
-expo-env.d.ts
 
 # Native
-.kotlin/
 *.orig.*
 *.jks
 *.p8
@@ -35,33 +35,3 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-
-ios/build/
-android/build/
-
-# Xcode
-ios/Pods/
-ios/Podfile.lock
-ios/Podfile.debug.lock
-ios/Podfile.release.lock
-
-# Android Studio
-android/app/build/
-android/build/intermediates/
-android/build/outputs/
-android/build/tmp/
-
-# Gradle
-android/gradle/wrapper/
-android/gradlew
-android/gradlew.bat
-
-# Buck
-buck-out/
-.buckd/
-
-# fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/
-fastlane/test_output/
