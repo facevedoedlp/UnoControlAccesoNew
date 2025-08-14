@@ -1,0 +1,1 @@
+/Users/federico/workspace/UnoControlAccesoNew/android/app/build/intermediates/cxx/Debug/3z2z6l17/obj/arm64-v8a

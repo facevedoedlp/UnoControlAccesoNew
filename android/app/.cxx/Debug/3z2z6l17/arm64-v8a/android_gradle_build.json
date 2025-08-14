@@ -1,0 +1,48 @@
+{
+  "buildFiles": [
+    "/Users/federico/workspace/UnoControlAccesoNew/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/federico/workspace/UnoControlAccesoNew/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/federico/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/federico/workspace/UnoControlAccesoNew/android/app/.cxx/Debug/3z2z6l17/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/federico/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/federico/workspace/UnoControlAccesoNew/android/app/.cxx/Debug/3z2z6l17/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "appmodules::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "appmodules",
+      "output": "/Users/federico/workspace/UnoControlAccesoNew/android/app/build/intermediates/cxx/Debug/3z2z6l17/obj/arm64-v8a/libappmodules.so",
+      "runtimeFiles": [
+        "/Users/federico/.gradle/caches/8.13/transforms/e80cc6deab05b24bdfe1060903f43f89/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
+        "/Users/federico/.gradle/caches/8.13/transforms/d644ee9b842757375fb9cebdd915ee04/transformed/react-android-0.79.5-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/Users/federico/.gradle/caches/8.13/transforms/d644ee9b842757375fb9cebdd915ee04/transformed/react-android-0.79.5-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
+      ]
+    },
+    "react_codegen_rnasyncstorage::@1596841e19ec5b9eeffe": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "react_codegen_rnasyncstorage"
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/federico/Library/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/federico/Library/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

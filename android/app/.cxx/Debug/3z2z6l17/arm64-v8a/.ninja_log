@@ -1,0 +1,16 @@
+# ninja log v5
+1	38	0	/Users/federico/workspace/UnoControlAccesoNew/android/app/.cxx/Debug/3z2z6l17/arm64-v8a/CMakeFiles/cmake.verify_globs	f94e3265817099e9
+7	8946	1755201404117965140	rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir/react/renderer/components/rnasyncstorage/States.cpp.o	4c9503558b70d6ba
+4	13248	1755201408444813266	rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir/react/renderer/components/rnasyncstorage/EventEmitters.cpp.o	b92917c9bbc380ef
+4	14923	1755201410117279973	rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir/react/renderer/components/rnasyncstorage/Props.cpp.o	8d4a126ee2fe466c
+6	15451	1755201410659445402	rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir/react/renderer/components/rnasyncstorage/ShadowNodes.cpp.o	781f44687274f3bb
+7	16040	1755201411243118034	rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir/react/renderer/components/rnasyncstorage/rnasyncstorageJSI-generated.cpp.o	892bfb18865681fc
+3	16616	1755201411817877735	rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir/react/renderer/components/rnasyncstorage/ComponentDescriptors.cpp.o	fcc99d101ee84011
+8	16673	1755201411875968997	rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir/rnasyncstorage-generated.cpp.o	901b0871a5174bc8
+0	16706	1755201411916912398	CMakeFiles/appmodules.dir/Users/federico/workspace/UnoControlAccesoNew/android/app/build/generated/autolinking/src/main/jni/autolinking.cpp.o	db682f65d0f18bac
+1	17134	1755201412340188951	CMakeFiles/appmodules.dir/OnLoad.cpp.o	86dacb26128ef047
+17134	17433	1755201412641071568	/Users/federico/workspace/UnoControlAccesoNew/android/app/build/intermediates/cxx/Debug/3z2z6l17/obj/arm64-v8a/libappmodules.so	2288d2e56b6fa60
+1	104	0	/Users/federico/workspace/UnoControlAccesoNew/android/app/.cxx/Debug/3z2z6l17/arm64-v8a/CMakeFiles/cmake.verify_globs	f94e3265817099e9
+1	88	0	/Users/federico/workspace/UnoControlAccesoNew/android/app/.cxx/Debug/3z2z6l17/arm64-v8a/CMakeFiles/cmake.verify_globs	f94e3265817099e9
+1	33	0	/Users/federico/workspace/UnoControlAccesoNew/android/app/.cxx/Debug/3z2z6l17/arm64-v8a/CMakeFiles/cmake.verify_globs	f94e3265817099e9
+0	11	0	clean	c6047c47656df755
