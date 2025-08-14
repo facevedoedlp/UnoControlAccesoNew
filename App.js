@@ -1,3 +1,4 @@
+// CORRECCIÓN 1: Imports correctos
 import React, { useState, useEffect, useRef } from 'react';
 import {
   SafeAreaView,
@@ -18,13 +19,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import styles from './src/styles/AppStyles';
+
+// CORRECCIÓN 2: Import completo desde molinetes/api.js
 import { 
   consultarCodigoMolinetes, 
   obtenerEstadisticasPuertas, 
   obtenerDetalleCodigo, 
-  probarConexionMolinetes 
+  probarConexionMolinetes,
+  probarConsultaCompleta
 } from './molinetes/api.js';
+
 import { getAppVersion } from './src/utils/version.js';
+
 // ==================== CONFIGURACIÓN DE CÁMARA ====================
 let Camera, CameraView;
 let isCameraAvailable = false;
@@ -185,8 +191,6 @@ const filtrarDNI = (barcode, modoOffline = false) => {
   }
 };
 
-
-
 export default function App() {
   // ==================== ESTADOS PRINCIPALES ====================
   
@@ -241,6 +245,43 @@ export default function App() {
   // Referencias
   const inputRef = useRef(null);
   const cameraRef = useRef(null);
+
+  // ==================== FUNCIÓN DE TEST - DENTRO DEL COMPONENTE ====================
+  
+  const testearConsultaCompleta = async (dni) => {
+    if (!dni || dni.trim() === '') {
+      Alert.alert('Error', 'Debe ingresar un DNI válido');
+      return;
+    }
+
+    try {
+      console.log('=== INICIANDO TEST DESDE MENÚ ===');
+      const resultado = await probarConsultaCompleta(dni);
+      
+      const mensaje = resultado.success ?
+        `✅ Consulta exitosa\n\n` +
+        `DNI: ${dni}\n` +
+        `Pasa: ${resultado.pasa ? 'SÍ' : 'NO'}\n` +
+        `Mensaje: ${resultado.mensaje}\n` +
+        `Estado: ${resultado.detalles?.estado || 'N/A'}` :
+        `❌ Error en consulta\n\n` +
+        `DNI: ${dni}\n` +
+        `Error: ${resultado.error}`;
+
+      Alert.alert(
+        'Resultado del Test',
+        mensaje,
+        [{ text: 'OK', onPress: () => focusInput() }]
+      );
+      
+    } catch (error) {
+      Alert.alert(
+        'Error en Test',
+        `No se pudo realizar el test:\n${error.message}`,
+        [{ text: 'OK', onPress: () => focusInput() }]
+      );
+    }
+  };
 
   // ==================== FUNCIÓN DE COLORES DINÁMICOS ====================
   
@@ -603,11 +644,26 @@ export default function App() {
     });
 
     try {
+      // VALIDAR PARÁMETROS ANTES DE ENVIAR
+      const puertaToSend = puerta && puerta.trim() !== '' ? puerta : "1";
+      const molineteToSend = molinete && molinete.trim() !== '' ? molinete : "1";
+      const consValue = isPerimetro ? "0" : "1";
+
+      console.log('=== DEBUGGING MOLINETES ===');
+      console.log('Código:', codigo);
+      console.log('Puerta original:', puerta);
+      console.log('Puerta a enviar:', puertaToSend);
+      console.log('Molinete original:', molinete);
+      console.log('Molinete a enviar:', molineteToSend);
+      console.log('Cons (perímetro):', consValue);
+      console.log('isPerimetro:', isPerimetro);
+
       const resultado = await consultarCodigoMolinetes(
         codigo,
-        puerta,
-        molinete,
-        isPerimetro ? "0" : "1"
+        puertaToSend,  // Usar valor validado
+        molineteToSend, // Usar valor validado
+        consValue,
+        "" // aux vacío
       );
 
       if (resultado.success) {
@@ -617,20 +673,22 @@ export default function App() {
           pasa: resultado.pasa,
           estado: resultado.mensaje,
           color: resultado.color,
-          puerta: puerta,
+          puerta: puertaToSend,
           mensaje: resultado.mensaje
         });
       } else {
+        console.error('Error en resultado de molinetes:', resultado);
         mostrarResultadoUnificado({
           dni: codigo,
           origen: 'molinetes',
           pasa: false,
           estado: 'ERROR DE CONEXIÓN',
           color: '#F44336',
-          mensaje: 'Error de conexión'
+          mensaje: resultado.error || 'Error de conexión'
         });
       }
     } catch (error) {
+      console.error('Error en consultarApiMolinetes:', error);
       mostrarResultadoUnificado({
         dni: codigo,
         origen: 'molinetes',
@@ -1138,19 +1196,50 @@ export default function App() {
     );
 
     if (usarApiMolinetes) {
+      // ==================== OPCIONES PARA MOLINETES ====================
       opciones.unshift(
-        { text: '🔌 Probar Conexión Molinetes', onPress: async () => {
+        { text: '🧪 Test Consulta Completa', onPress: async () => {
+          Alert.alert(
+            'Test de Consulta',
+            'Ingrese un DNI para probar:',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Usar 12345678', onPress: () => testearConsultaCompleta('12345678') },
+              { text: 'Usar DNI Real', onPress: () => {
+                Alert.prompt(
+                  'Ingrese DNI',
+                  'DNI para probar:',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Probar', onPress: (dni) => testearConsultaCompleta(dni) }
+                  ],
+                  'plain-text',
+                  '',
+                  'numeric'
+                );
+              }}
+            ]
+          );
+        }},
+        { text: '🔌 Test Conexión Básica', onPress: async () => {
           try {
+            console.log('=== INICIANDO TEST DE CONEXIÓN DESDE MENÚ ===');
             const resultado = await probarConexionMolinetes();
+            
             Alert.alert(
-              resultado.success ? 'Conexión Exitosa' : 'Error de Conexión',
+              resultado.success ? '✅ Conexión Exitosa' : '❌ Error de Conexión',
               resultado.success ? 
-                `✅ Conectado correctamente a:\n${resultado.url}` :
-                `❌ No se pudo conectar a:\n${resultado.url}\n\nError: ${resultado.error}`,
+                `Conectado a: ${resultado.url}\n` +
+                `Status: ${resultado.status}\n` +
+                `Tiempo: ${resultado.responseTime || 'N/A'}ms\n` +
+                `Respuesta: ${resultado.data ? 'JSON válido' : 'Texto plano'}` :
+                `Error conectando a: ${resultado.url}\n` +
+                `Tipo: ${resultado.errorType || 'Desconocido'}\n` +
+                `Mensaje: ${resultado.error}`,
               [{ text: 'OK', onPress: () => focusInput() }]
             );
           } catch (error) {
-            Alert.alert('Error', 'Error al probar la conexión', [
+            Alert.alert('Error', 'Error al probar la conexión: ' + error.message, [
               { text: 'OK', onPress: () => focusInput() }
             ]);
           }
@@ -1164,20 +1253,21 @@ export default function App() {
             if (stats.success) {
               Alert.alert(
                 '📊 Estadísticas Molinetes',
-                `Información del sistema de molinetes:\n\n${JSON.stringify(stats.data, null, 2)}`,
+                `Información del sistema:\n\n${JSON.stringify(stats.estadisticas, null, 2)}`,
                 [{ text: 'OK', onPress: () => focusInput() }]
               );
             } else {
               throw new Error(stats.error);
             }
           } catch (error) {
-            Alert.alert('Error', 'No se pudieron obtener las estadísticas', [
+            Alert.alert('Error', 'No se pudieron obtener las estadísticas: ' + error.message, [
               { text: 'OK', onPress: () => focusInput() }
             ]);
           }
         }}
       );
     } else {
+      // ==================== OPCIONES PARA EVENTOS ====================
       if (baseLocal.length > 0) {
         opciones.unshift(
           { text: '🗑️ Limpiar Base Offline', onPress: limpiarBaseOffline },
@@ -1362,7 +1452,6 @@ export default function App() {
           }}>
             {usarApiMolinetes ? 'MOLINETES' : 'EVENTOS'}
           </Text>
-          {/* NUEVA LÍNEA: Mostrar puerta y molinete cuando está en modo molinete */}
           {usarApiMolinetes && (
             <Text style={{ 
               color: colors.headerText, 
@@ -1446,29 +1535,6 @@ export default function App() {
       )}
     </View>
   );
-
-  const renderBaseLocalInfo = () => {
-    const tipoConexion = usarApiMolinetes ? 
-      `🖥️ MOLINETES` :
-      baseLocal.length > 0 ? 
-        `☁️ OFFLINE - ${totalEntradas.toLocaleString()} entradas (${fechaDescarga})` :
-        '⚠️ Sin base offline - Toque Admin > Actualizar Base';
-
-    return (
-      <View style={styles.baseLocalContainerCompact}>
-        <View style={styles.baseLocalHeaderCompact}>
-          <Text style={styles.baseLocalTitleCompact}>
-            {!usarApiMolinetes && PERIMETROS[perimetroSeleccionado]?.icono} {!usarApiMolinetes && PERIMETROS[perimetroSeleccionado]?.nombre}
-            {!usarApiMolinetes && (modoVisitante ? ' 🚌' : ' 🏠')}
-          </Text>
-        </View>
-        <Text style={styles.baseLocalInfoCompact}>
-          {tipoConexion}
-        </Text>
-        {renderProgressBar()}
-      </View>
-    );
-  };
 
   // ==================== MODAL SCANNER ====================
   const renderModalScanner = () => (
@@ -1568,7 +1634,6 @@ export default function App() {
           <ScrollView>
             <Text style={styles.modalTitle}>⚙️ Configuración</Text>
             
-            {/* PERÍMETRO - Solo visible con API EVENTOS */}
             {!usarApiMolinetes && (
               <View style={styles.switchContainer}>
                 <Text style={styles.switchLabel}>Perímetro de Control</Text>
@@ -1620,7 +1685,6 @@ export default function App() {
               </View>
             </View>
 
-            {/* MODO OPERACIÓN - Solo visible con API EVENTOS */}
             {!usarApiMolinetes && (
               <View style={styles.switchContainer}>
                 <Text style={styles.switchLabel}>Modo de operación</Text>
@@ -1724,7 +1788,7 @@ export default function App() {
                 style={styles.modalInput}
                 value={puerta}
                 onChangeText={setPuerta}
-                placeholder="0;1;2;3;4;5;6;7;8;9;10;12;13;14;15;17;28;57;90;91;100;115;800;801;999"
+                placeholder="1"
               />
             </View>
 
@@ -1828,7 +1892,6 @@ export default function App() {
               </View>
             </View>
 
-            {/* MODO OPERACIÓN - Solo visible con API EVENTOS */}
             {!usarApiMolinetes && (
               <View style={styles.switchContainer}>
                 <Text style={styles.switchLabel}>Modo de operación</Text>
@@ -1932,7 +1995,7 @@ export default function App() {
                 style={styles.modalInput}
                 value={puerta}
                 onChangeText={setPuerta}
-                placeholder="0;1;2;3;4;5;6;7;8;9;10;12;13;14;15;17;28;57;90;91;100;115;800;801;999"
+                placeholder="1"
               />
             </View>
 
@@ -1975,16 +2038,14 @@ export default function App() {
     }
   }, [showScanner]);
 
-  // useEffect para mantener el input siempre enfocado
   useEffect(() => {
     const interval = setInterval(() => {
       if (!showConfig && !showScanner && isConfigured && inputRef.current) {
-        // Solo hacer focus si no hay otro elemento enfocado
         if (!inputRef.current.isFocused()) {
           inputRef.current.focus();
         }
       }
-    }, 1000); // Verificar cada segundo
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [showConfig, showScanner, isConfigured]);
@@ -2018,8 +2079,6 @@ export default function App() {
           keyboardShouldPersistTaps="handled"
         >
           
-          {/* Removido renderBaseLocalInfo() para liberar espacio */}
-
           <TouchableOpacity 
             style={{ flex: 1, minHeight: 200 }}
             activeOpacity={1} 
@@ -2034,7 +2093,6 @@ export default function App() {
                 <Ionicons name="qr-code" size={30} color="#666" />
               </TouchableOpacity>
               
-              {/* AQUÍ ESTÁ EL TextInput QUE FALTABA */}
               <TextInput
                 ref={inputRef}
                 style={styles.textInput}
@@ -2080,7 +2138,6 @@ export default function App() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* VERSIÓN VISIBLE EN PANTALLA PRINCIPAL */}
         <TouchableOpacity 
           style={{
             position: 'absolute',

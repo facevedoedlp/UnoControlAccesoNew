@@ -70,22 +70,42 @@ const manejarTimeout = (promesa, timeoutMs = API_CONFIG.TIMEOUT) => {
  * @param {string} aux - Información auxiliar (opcional)
  * @returns {Object} Resultado de la consulta
  */
-export const consultarCodigoMolinetes = async (codigo, puerta = "0;1;2;3;4;5;6;7;8;9;10;12;13;14;15;17;28;57;90;91;100;115;800;801;999", molinete = "1", cons = "0", aux = "") => {
+// Corrección en molinetes/api.js
+
+export const consultarCodigoMolinetes = async (codigo, puerta = "1", molinete = "1", cons = "0", aux = "") => {
     try {
         // Recargar configuración por si cambió
         await cargarConfiguracion();
 
+        // VALIDAR Y LIMPIAR PARÁMETROS
+        const codigoLimpio = (codigo || '').toString().trim();
+        const puertaLimpia = (puerta || '1').toString().trim();
+        const molineteLimpio = (molinete || '1').toString().trim();
+        const consLimpio = (cons || '0').toString().trim();
+        const auxLimpio = aux || `pda_${new Date().getTime()}`;
+
+        // Validaciones básicas
+        if (!codigoLimpio) {
+            throw new Error('Código no puede estar vacío');
+        }
+
+        if (!puertaLimpia) {
+            throw new Error('Puerta no puede estar vacía');
+        }
+
         const payload = {
-            codigo: codigo.toString(),
-            puerta: puerta.toString(), // Usar todas las puertas por defecto
-            molinete: molinete.toString(),
-            cons: cons.toString(),
+            codigo: codigoLimpio,
+            puerta: puertaLimpia,
+            molinete: molineteLimpio,
+            cons: consLimpio,
             token: API_CONFIG.TOKEN || "app_token",
-            aux: aux || `pda_${new Date().getTime()}`
+            aux: auxLimpio
         };
 
-        console.log('Consultando molinetes con payload:', payload);
+        console.log('=== PAYLOAD MOLINETES ===');
         console.log('URL:', `${API_CONFIG.BASE_URL}/consulta`);
+        console.log('Payload completo:', JSON.stringify(payload, null, 2));
+        console.log('Headers:', JSON.stringify(crearHeaders(), null, 2));
 
         const response = await manejarTimeout(
             fetch(`${API_CONFIG.BASE_URL}/consulta`, {
@@ -96,14 +116,16 @@ export const consultarCodigoMolinetes = async (codigo, puerta = "0;1;2;3;4;5;6;7
         );
 
         console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
 
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('Error response:', errorText);
             throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
-        console.log('Response data:', data);
+        console.log('Response data:', JSON.stringify(data, null, 2));
 
         // Ahora también obtenemos información adicional del DNI
         let detalleInfo = null;
@@ -124,9 +146,9 @@ export const consultarCodigoMolinetes = async (codigo, puerta = "0;1;2;3;4;5;6;7
             color: determinarColor(data),
             detalles: {
                 estado: data.mensaje_de_respuesta || 'DESCONOCIDO',
-                codigo: codigo,
-                puerta: puerta,
-                molinete: molinete,
+                codigo: codigoLimpio,
+                puerta: puertaLimpia,
+                molinete: molineteLimpio,
                 salida: data.salida || 0,
                 aux: data.aux || '',
                 // Información adicional si está disponible
@@ -147,12 +169,11 @@ export const consultarCodigoMolinetes = async (codigo, puerta = "0;1;2;3;4;5;6;7
             error: error.message,
             detalles: {
                 estado: 'ERROR',
-                codigo: codigo
+                codigo: codigo || 'Sin código'
             }
         };
     }
 };
-
 /**
  * Obtener estadísticas por puerta
  * @returns {Object} Estadísticas de todas las puertas
@@ -243,12 +264,19 @@ export const obtenerDetalleCodigo = async (codigo) => {
  * Probar la conexión con la API de molinetes
  * @returns {Object} Resultado de la prueba de conexión
  */
+// En molinetes/api.js - Función mejorada para probar conexión
+
 export const probarConexionMolinetes = async () => {
     try {
         await cargarConfiguracion();
 
-        console.log('Probando conexión a:', API_CONFIG.BASE_URL);
+        console.log('=== INICIANDO PRUEBA DE CONEXIÓN ===');
+        console.log('URL:', API_CONFIG.BASE_URL);
+        console.log('Token configurado:', API_CONFIG.TOKEN ? '[SÍ]' : '[NO]');
+        console.log('Headers que se enviarán:', JSON.stringify(crearHeaders(), null, 2));
 
+        const startTime = Date.now();
+        
         // Intentar obtener estadísticas como test de conectividad
         const response = await manejarTimeout(
             fetch(`${API_CONFIG.BASE_URL}/pasoxpuerta`, {
@@ -258,27 +286,67 @@ export const probarConexionMolinetes = async () => {
             5000 // Timeout más corto para prueba de conexión
         );
 
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+
+        console.log('=== RESPUESTA RECIBIDA ===');
+        console.log('Status:', response.status);
+        console.log('Status Text:', response.statusText);
+        console.log('Tiempo de respuesta:', responseTime + 'ms');
+        console.log('Headers de respuesta:', JSON.stringify([...response.headers.entries()], null, 2));
+
         if (response.ok) {
-            return {
-                success: true,
-                url: API_CONFIG.BASE_URL,
-                status: response.status,
-                mensaje: 'Conexión exitosa'
-            };
+            const responseText = await response.text();
+            console.log('=== CONTENIDO DE LA RESPUESTA ===');
+            console.log('Respuesta raw:', responseText);
+            
+            try {
+                const data = JSON.parse(responseText);
+                console.log('Respuesta parseada:', JSON.stringify(data, null, 2));
+                
+                return {
+                    success: true,
+                    url: API_CONFIG.BASE_URL,
+                    status: response.status,
+                    responseTime: responseTime,
+                    data: data,
+                    mensaje: `Conexión exitosa - ${responseTime}ms`
+                };
+            } catch (parseError) {
+                console.log('Error parseando JSON:', parseError);
+                return {
+                    success: true,
+                    url: API_CONFIG.BASE_URL,
+                    status: response.status,
+                    responseTime: responseTime,
+                    rawResponse: responseText,
+                    mensaje: `Conexión exitosa pero respuesta no es JSON - ${responseTime}ms`
+                };
+            }
         } else {
-            throw new Error(`HTTP ${response.status}`);
+            const errorText = await response.text();
+            console.log('=== ERROR EN LA RESPUESTA ===');
+            console.log('Error text:', errorText);
+            
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
     } catch (error) {
-        console.error('Error probando conexión:', error);
+        console.error('=== ERROR DE CONEXIÓN ===');
+        console.error('Tipo de error:', error.constructor.name);
+        console.error('Mensaje:', error.message);
+        console.error('Stack:', error.stack);
+        
         return {
             success: false,
             url: API_CONFIG.BASE_URL,
             error: error.message,
-            mensaje: 'Error de conexión'
+            errorType: error.constructor.name,
+            mensaje: `Error de conexión: ${error.message}`
         };
     }
 };
+
 
 // ==================== UTILIDADES AUXILIARES ====================
 
@@ -322,6 +390,42 @@ export const actualizarConfiguracionAPI = (nuevaConfig) => {
     console.log('Configuración de API actualizada:', API_CONFIG);
 };
 
+// AGREGAR ESTA FUNCIÓN AL FINAL DE molinetes/api.js
+
+// AGREGAR AL FINAL DE molinetes/api.js
+
+// Nueva función para testear con un código específico
+export const probarConsultaCompleta = async (codigoPrueba = "12345678") => {
+    console.log('=== INICIANDO PRUEBA DE CONSULTA COMPLETA ===');
+    console.log('Código de prueba:', codigoPrueba);
+    
+    try {
+        const resultado = await consultarCodigoMolinetes(
+            codigoPrueba,
+            "1", // puerta
+            "1", // molinete
+            "0", // cons (perímetro)
+            "test_desde_app" // aux
+        );
+        
+        console.log('=== RESULTADO DE CONSULTA ===');
+        console.log('Success:', resultado.success);
+        console.log('Pasa:', resultado.pasa);
+        console.log('Mensaje:', resultado.mensaje);
+        console.log('Detalles:', JSON.stringify(resultado.detalles, null, 2));
+        console.log('Raw response:', JSON.stringify(resultado.raw_response, null, 2));
+        
+        return resultado;
+        
+    } catch (error) {
+        console.error('=== ERROR EN CONSULTA ===');
+        console.error('Error:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+};
 // ==================== EXPORTACIONES ADICIONALES ====================
 
 // Exportar configuración actual (para debugging)
